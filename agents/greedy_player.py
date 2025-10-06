@@ -1,12 +1,8 @@
-import random
-from collections import Counter
-from typing import Dict, Tuple, List, Optional
-
-# Relative import to ColoredTrails logic and constants
+from typing import Dict, Tuple, List, Optional, Set
 from game.colored_trails import ColoredTrails, GameState, COLORS
 
 
-class LLMPlayer:
+class GreedyPlayer:
     """
     A computational agent designed to play Colored Trails using a greedy heuristic
     in place of a sophisticated LLM API call for negotiation.
@@ -19,28 +15,25 @@ class LLMPlayer:
         self.player_id = player_id
         self.opponent_id = 'p2' if player_id == 'p1' else 'p1'
         self.game = game_env
-        self.COLORS = COLORS  # Uses the updated constant from the game module
+        self.COLORS = COLORS
+        self.proposed_trades: Set[Tuple[str, str]] = set()  # Track proposed trades to prevent repetition
 
     def calculate_utility(self, new_chips: Dict[str, int]) -> int:
         """
         Calculates the maximum score (utility) if the player were to have `new_chips`.
         This is the core evaluation function for any trade.
         """
-        # Create a temporary GameState with the hypothetical chips
         temp_state = GameState(
             goal_pos=self.game.states[self.player_id].goal_pos,
             chips=new_chips
         )
 
-        # Create a temporary game environment to calculate the score
-        # Note: Only the current player's state is modified for calculation
         temp_states = {
             self.player_id: temp_state,
-            self.opponent_id: self.game.states[self.opponent_id]  # Keep opponent's state stable
+            self.opponent_id: self.game.states[self.opponent_id]
         }
         temp_game = ColoredTrails(self.game.board, temp_states)
 
-        # Get the max score (utility) from the environment logic
         max_score, _, _ = temp_game.get_max_score_and_path(self.player_id)
         return max_score
 
@@ -48,19 +41,19 @@ class LLMPlayer:
         """
         Agent's primary action: Propose a trade (Give_Chip, Receive_Chip).
 
-        DUMMY LLM LOGIC: Propose the trade that maximizes personal utility gain.
+        UPDATED: Only proposes trades that increase utility and haven't been proposed before.
         """
 
         current_chips = self.game.states[self.player_id].chips
         opponent_chips = self.game.states[self.opponent_id].chips
 
-        # If the player has no chips to give, they must pass
         if not current_chips:
+            print("No chips to propose")
             return "Pass", "Pass"
 
         current_utility = self.calculate_utility(dict(current_chips))
 
-        best_gain = -float('inf')
+        best_gain = 0  # Only accept positive gains
         best_proposal: Tuple[str, str] = ("Pass", "Pass")
 
         # Iterate over all possible trades: Give 1 chip, Receive 1 chip
@@ -70,6 +63,15 @@ class LLMPlayer:
 
             for receive_color in opponent_chips.keys():
                 if opponent_chips[receive_color] == 0:
+                    continue
+
+                # Skip trading same color for same color (pointless trade)
+                if give_color == receive_color:
+                    continue
+
+                # Skip if this trade was already proposed
+                trade_tuple = (give_color, receive_color)
+                if trade_tuple in self.proposed_trades:
                     continue
 
                 # --- Hypothetical New Chip State ---
@@ -87,10 +89,14 @@ class LLMPlayer:
                 new_utility = self.calculate_utility(dict(hypo_chips))
                 gain = new_utility - current_utility
 
-                # 4. Check if this is the best trade
+                # Only consider trades with positive gain
                 if gain > best_gain:
                     best_gain = gain
                     best_proposal = (give_color, receive_color)
+
+        # Record the proposed trade
+        if best_proposal != ("Pass", "Pass"):
+            self.proposed_trades.add(best_proposal)
 
         return best_proposal
 
@@ -104,13 +110,13 @@ class LLMPlayer:
         opp_give_color, opp_receive_color = proposal
 
         if opp_give_color == "Pass":
-            return True  # If opponent passes, we accept the round ending.
+            return True
 
         current_chips = self.game.states[self.player_id].chips
 
         # 1. Check if the player has the chip the opponent is asking for
         if current_chips.get(opp_receive_color, 0) < 1:
-            return False  # Cannot accept: Don't have the chip to give
+            return False
 
         # 2. Calculate utility of accepting the proposal
         hypo_chips = current_chips.copy()
@@ -126,5 +132,4 @@ class LLMPlayer:
         new_utility = self.calculate_utility(dict(hypo_chips))
         current_utility = self.calculate_utility(dict(current_chips))
 
-        # Accept if the trade strictly increases utility.
         return new_utility > current_utility
