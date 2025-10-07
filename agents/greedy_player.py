@@ -105,7 +105,7 @@ class GreedyPlayer:
         if evaluated_trades:
             print(f"\n  [{self.player_id}] Evaluated {len(evaluated_trades)} possible trades:")
             print(f"  [{self.player_id}] Current utility: {current_utility}")
-            # Show top trades by gain
+            # Show top trades by gain (add [:3] to only show the top three)
             sorted_trades = sorted(evaluated_trades, key=lambda x: x[2], reverse=True)
             for give, recv, gain in sorted_trades:
                 print(f"    - Give {give} for {recv}: gain = {gain}")

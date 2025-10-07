@@ -12,7 +12,9 @@ from game.colored_trails import (
     START_POS,
     COLORS
 )
+# Import both player types
 from agents.greedy_player import GreedyPlayer
+from agents.llm_player import LLMPlayer
 
 MAX_NEGOTIATION_ROUNDS = 5  # Set a limit for the negotiation phase
 
@@ -32,7 +34,6 @@ def plot_game_state(game: ColoredTrails):
     """Generates and displays a Matplotlib visualization of the game board and state."""
 
     # 1. Prepare Data Matrix
-    # Convert the string board (BLACK, GRAY, WHITE) into a numerical matrix (0, 1, 2)
     board_matrix = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
@@ -91,15 +92,24 @@ def plot_game_state(game: ColoredTrails):
     plt.show()  # Display the plot
 
 
-def run_game_simulation(game: ColoredTrails):
+def run_game_simulation(game: ColoredTrails, player_type: str = 'GREEDY'):
     """
     Runs the full simulation of the negotiation phase followed by scoring.
     Each round now consists of both players making proposals (if they choose to).
     """
-    # Initialize the two dummy LLM players
+
+    # Select the agent class based on the passed argument
+    if player_type.upper() == 'LLM':
+        AgentClass = LLMPlayer
+        print("--- Using LLMPlayer for negotiation. ---")
+    else:
+        AgentClass = GreedyPlayer
+        print("--- Using GreedyPlayer for negotiation. ---")
+
+    # Initialize the players using the selected class
     player_agents = {
-        'p1': GreedyPlayer(player_id='p1', game_env=game),
-        'p2': GreedyPlayer(player_id='p2', game_env=game)
+        'p1': AgentClass(player_id='p1', game_env=game),
+        'p2': AgentClass(player_id='p2', game_env=game)
     }
 
     # Track how many offers each player made (for penalty calculation)
@@ -218,5 +228,8 @@ if __name__ == "__main__":
     board_map, player_states = ColoredTrails.generate_random_game()
     game = ColoredTrails(board_map, player_states)
 
+    # Set the desired player type here. Options: 'GREEDY' or 'LLM'
+    AGENT_TO_USE = 'LLM'
+
     # Run the simulation and plot the result
-    run_game_simulation(game)
+    run_game_simulation(game, player_type=AGENT_TO_USE)
