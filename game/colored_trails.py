@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict, Set, Optional
 
 # --- Configuration Constants ---
 BOARD_SIZE = 5
-COLORS = ["BLACK", "GRAY", "WHITE"]
+COLORS = ["BROWN", "DARK ORANGE", "LIGHT ORANGE", "YELLOW", "BEIGE"]
 START_POS = (2, 2)
 
 # --- Scoring Constants (from the paper's general scoring scheme) ---

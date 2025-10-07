@@ -16,14 +16,15 @@ from agents.greedy_player import GreedyPlayer
 
 MAX_NEGOTIATION_ROUNDS = 5  # Set a limit for the negotiation phase
 
-# Matplotlib color mapping configuration
+# Matplotlib color mapping configuration (Hot Desert color scheme)
 # 1. Define value mapping for the board strings
-COLOR_TO_VALUE = {"WHITE": 0, "GRAY": 1, "BLACK": 2}
-# 2. Define the actual colors (White, Grey, Black) for the colormap
-HEX_COLORS = ['#FFFFFF', '#808080', '#000000']
+COLOR_TO_VALUE = {"BROWN": 0, "DARK ORANGE": 1, "LIGHT ORANGE": 2, "YELLOW": 3, "BEIGE": 4}
+# 2. Define the actual colors for the colormap
+HEX_COLORS = ['#912C0C', '#F37031', '#F7A741', '#EFDE63', '#C59960']
+
 COLOR_MAP = mcolors.ListedColormap(HEX_COLORS)
 # 3. Define boundary positions for the colormap
-BOUNDS = [-0.5, 0.5, 1.5, 2.5]
+BOUNDS = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
 
 

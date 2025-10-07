@@ -1,0 +1,10 @@
+step 1: make sure that an LLM can play the game: make sure that it's moves are legal and that it plays to achieve the goal 			DONE
+
+board improvements:
+	-if one of the players can immediately reach their goal, regenerate the board and player hands
+
+greedy baseline agent improvements: 
+	-do not allow players to see opponents chips when making offers
+	-check if trades are actually not being duplicated
+	-optional: let them evaluate their own trades in the first round before blindly accepting proposed offer by the other player
+
