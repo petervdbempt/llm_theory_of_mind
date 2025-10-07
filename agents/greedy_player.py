@@ -46,7 +46,7 @@ class GreedyPlayer:
         """
 
         current_chips = self.game.states[self.player_id].chips
-        opponent_chips = self.game.states[self.opponent_id].chips
+        opponent_chips = self.game.states[self.opponent_id].chips  # Only used for debugging
 
         if not current_chips:
             print(f"  [{self.player_id}] No chips available to trade")
@@ -65,9 +65,9 @@ class GreedyPlayer:
             if current_chips[give_color] == 0:
                 continue
 
-            for receive_color in opponent_chips.keys():
-                if opponent_chips[receive_color] == 0:
-                    continue
+            for receive_color in self.COLORS:  #  Replace with opponent_chips.keys() for pruning & debugging
+                # if opponent_chips[receive_color] == 0:
+                #     continue
 
                 # Skip trading same color for same color (pointless trade)
                 if give_color == receive_color:
@@ -103,10 +103,10 @@ class GreedyPlayer:
 
         # DEBUG OUTPUT
         if evaluated_trades:
-            print(f"  [{self.player_id}] Evaluated {len(evaluated_trades)} possible trades:")
+            print(f"\n  [{self.player_id}] Evaluated {len(evaluated_trades)} possible trades:")
             print(f"  [{self.player_id}] Current utility: {current_utility}")
-            # Show top 3 trades by gain
-            sorted_trades = sorted(evaluated_trades, key=lambda x: x[2], reverse=True)[:3]
+            # Show top trades by gain
+            sorted_trades = sorted(evaluated_trades, key=lambda x: x[2], reverse=True)
             for give, recv, gain in sorted_trades:
                 print(f"    - Give {give} for {recv}: gain = {gain}")
 
