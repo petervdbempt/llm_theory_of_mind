@@ -1,7 +1,16 @@
 import random
+import token
 from typing import Dict, Tuple, Set
 from game.colored_trails import ColoredTrails, GameState, COLORS
-from huggingface_hub import InferenceClient
+from huggingface_hub import ChatCompletionInput, InferenceClient
+
+
+def read_api_key(filepath="API_token.txt"):
+    with open(filepath, "r") as f:
+        return f.read().strip()
+
+api_key = read_api_key()
+print(f"used api key: {api_key}")
 
 
 class LLMPlayer:
@@ -21,7 +30,7 @@ class LLMPlayer:
         # Initialize Llama inference client
         # NOTE: This model may be automatically routed to a provider (like fireworks-ai)
         # that restricts the task type. We will use 'conversational' to ensure compatibility.
-        self.client = InferenceClient(model="meta-llama/Llama-3.1-8B-Instruct")
+        self.client = InferenceClient(model="meta-llama/Llama-3.1-8B-Instruct", token=api_key)
 
     # -------------------------------------------------------------------------
     # Helper: Call the LLM with a structured prompt
@@ -40,15 +49,15 @@ class LLMPlayer:
 
             # The current error suggests the provider handles Llama 3.1 only via chat endpoints.
             # We will use the chat-optimized `text_generation` call structure:
-            response_text = self.client.text_generation(
-                prompt,
-                max_new_tokens=128,
-                temperature=0.4,
-                top_p=0.9,
-                # Use 'stop' instead of the deprecated 'stop_sequences'
-                stop=["\n", "}", ")"],
+            _prompt = [{'role': 'user', 'content': prompt}]
+            response_text = self.client.chat_completion(
+                _prompt,
+                max_tokens=128,
+                stop=["\n", "}",],
             )
-            return response_text.strip()
+            # print(response_text.choices[0].message.content)
+            # return response_text.strip()
+            return response_text.choices[0].message.content
 
         except Exception as e:
             # The previous error indicated 'conversational' is available.
@@ -167,7 +176,7 @@ Respond strictly with "ACCEPT" or "REJECT".
 
         # Apply legality check
         if my_state.chips.get(opp_receive, 0) < 1:
-            print(f"  [{self.player_id}] Cannot accept — missing {opp_receive}")
+            print(f"  [{self.player_id}] Cannot accept - missing {opp_receive}")
             return False
 
         if "ACCEPT" in llm_output and "REJECT" not in llm_output:
