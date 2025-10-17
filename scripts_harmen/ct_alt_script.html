@@ -1,0 +1,111 @@
+<html>
+<head>
+<title>Theory of Mind in Negotiations</title>
+<script language=JavaScript src=ct_alt_game.js></script>
+<script language=JavaScript src=ct_alt_agent.js></script>
+<script language=JavaScript src=ct_alt_screen.js></script>
+</head>
+<body onLoad="javascript:init()">
+
+<table border=0>
+<tr>
+<td colspan=2 id=initMentalContent>
+<table><tr><td align=center>First-order</td><td align=center>Second-order</td></tr>
+<script language="JavaScript">
+document.write("<tr><td>"+makeLocationBeliefGrid("init1",15)+"</td><td>"+makeLocationBeliefGrid("init2",15)+"</td></tr>")
+</script>
+<td><small id=confToM1_init></small></td>
+<td><small id=confToM2_init></small></td>
+</td></tr>
+<tr><td>
+</table>
+</td>
+</td><td>
+<td colspan=2 id=respMentalContent>
+<table><tr><td align=center>First-order</td><td align=center>Second-order</td></tr>
+<script language="JavaScript">
+document.write("<tr><td>"+makeLocationBeliefGrid("resp1",15)+"</td><td>"+makeLocationBeliefGrid("resp2",15)+"</td></tr>")
+</script>
+<td><small id=confToM1_resp></small></td>
+<td><small id=confToM2_resp></small></td>
+</td></tr>
+<tr><td>
+</table>
+</td>
+</tr>
+<tdr>
+<td><h3>Initiator</h3>
+Score: <span id=scoreIntiator>0</span></td>
+<td align=center rowspan=3 valign=middle>
+<img id="turn_signal_0" src="/images/turn_0.png" width=50 style="visibility:hidden;">
+</td><td align=center rowspan=4>
+<script language=javascript>
+document.write(makeBoard(5));
+</script>
+</td><td align=center rowspan=3 valign=middle>
+<img id="turn_signal_1" src="/images/turn_1.png" width=50 style="visibility:hidden;">
+</td>
+<td align=right><h3>Responder</h3>
+Score: <span id=scoreResponder>0</span></td>
+</tr><tr>
+<td align=center><img src="/images/player_init.png"></td>
+<td align=center><img src="/images/player_resp.png"></td>
+</tr><tr><td align=center>
+<script language=javascript>
+document.write(makeEndowmentArea("i"));
+</script>
+</td><td align=center>
+<script language=javascript>
+document.write(makeEndowmentArea("r"));
+</script>
+</td>
+</tr><tr>
+<td colspan=2>
+Theory of mind:<br>
+<input type="radio" name=ToMorder1 value=0 onClick="javascript:setInitiator(this.value);">Zero-order<br>
+<input type="radio" name=ToMorder1 value=1 onClick="javascript:setInitiator(this.value);">First-order<br>
+<input type="radio" name=ToMorder1 value=2 checked onClick="javascript:setInitiator(this.value);">Second-order<br>
+<!--input type="radio" name=ToMorder1 value=3 onClick="javascript:setInitiator(this.value);">Third-order<br>
+<input type="radio" name=ToMorder1 value=4 onClick="javascript:setInitiator(this.value);">Fourth-order<br-->
+<input type="radio" name=ToMorder1 value=-1 onClick="javascript:setInitiator(this.value);">Human player<br>
+<input type=checkbox id=showInitMental onClick="javascript:toggleInitMental(this.checked);">Show mental content
+</td>
+<td colspan=2>
+Theory of mind:<br>
+<input type="radio" name=ToMorder2 value=0 onClick="javascript:setResponder(this.value);">Zero-order<br>
+<input type="radio" name=ToMorder2 value=1 onClick="javascript:setResponder(this.value);">First-order<br>
+<input type="radio" name=ToMorder2 value=2 checked onClick="javascript:setResponder(this.value);">Second-order<br>
+<!--input type="radio" name=ToMorder2 value=3 onClick="javascript:setResponder(this.value);">Third-order<br>
+<input type="radio" name=ToMorder2 value=4 onClick="javascript:setResponder(this.value);">Fourth-order<br-->
+<input type="radio" name=ToMorder2 value=-1 onClick="javascript:setResponder(this.value);">Human player<br>
+<input type=checkbox id=showRespMental onClick="javascript:toggleRespMental(this.checked);">Show mental content
+</td>
+</tr><tr><td align=right rowspan=3>
+<script language=javascript>
+document.write(makeHistoryPanel("0"));
+</script>
+</td><td colspan=3>
+<script language=javascript>
+document.write(makeOfferPanel("1"));
+updateOfferPanel("1");
+</script>
+</td><td rowspan=3>
+<script language=javascript>
+document.write(makeHistoryPanel("1"));
+</script>
+</td></tr>
+<tr>
+<td align=center colspan=3>
+<input type=button id="button_accept" value="Accept offer" onClick="javascript:acceptOffer();"> 
+<input type=button id="button_counter" value="Make new offer" onClick="javascript:makeHumanOffer();"> 
+<input type=button id="button_withdraw" value="Withdraw from negotiation" onClick="javascript:withdrawOffer();"></td>
+</tr>
+<tr>
+<td align=center colspan=3>
+<input type=button id="button_start" value="Start" onClick="javascript:startTimer();"> <input type=button id="button_stop" value="Stop" onClick="javascript:stopTimer();">
+<input type=button id="button_play" value="Play round" onClick="javascript:playRound(-1);"> <input type=button value="Reset game" onClick="javascript:resetGame();"></td>
+</tr>
+</table>
+
+</body>
+</html>
