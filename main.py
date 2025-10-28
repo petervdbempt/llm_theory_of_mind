@@ -11,7 +11,8 @@ from game.colored_trails import (
     START_POS,
     COLORS
 )
-from agents.llm_player_gemini import LLMPlayer
+# Assuming LLMPlayer is correctly importing and configured
+from agents.llm_player import LLMPlayer
 
 MAX_NEGOTIATION_ROUNDS = 5
 
@@ -115,7 +116,7 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
                 hypo[chip] = hypo.get(chip, 0) + 1
             # Responder gives opp_receive
             for chip in opp_receive:
-                hypo[chip] = hypo.get(chip, 0) - 1
+                hypo[chip] -= 1
                 if hypo[chip] == 0:
                     del hypo[chip]
 
@@ -128,7 +129,8 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
             new_score, _, _ = temp_game.get_max_score_and_path(self.player_id)
 
             accept = new_score > current_score
-            self.history.append(f"{self.player_id} {'ACCEPTED' if accept else 'REJECTED'} offer ({opp_give} for {opp_receive})")
+            self.history.append(
+                f"{self.player_id} {'ACCEPTED' if accept else 'REJECTED'} offer ({opp_give} for {opp_receive})")
             return accept
 
     # Build agents according to the requested type
@@ -145,6 +147,7 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
 
     offers_made = {'p1': 0, 'p2': 0}
     trade_made = False
+    negotiation_ended = False  # New flag to control the outer loop
 
     print("\n" + "=" * 60)
     print("      COLORED TRAILS: STARTING NEGOTIATION LOG")
@@ -156,6 +159,9 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
 
     # Negotiation loop: up to MAX_NEGOTIATION_ROUNDS rounds; each round p1 then p2 propose
     for round_num in range(1, MAX_NEGOTIATION_ROUNDS + 1):
+        if negotiation_ended:
+            break  # Exit the negotiation if already ended by a pass or accepted trade
+
         print(f"\n{'=' * 60}")
         print(f"ROUND {round_num}")
         print(f"{'=' * 60}")
@@ -174,12 +180,14 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
             if isinstance(proposer_receive, str):
                 proposer_receive = [proposer_receive]
 
-            # If proposer passes, negotiation ends immediately (no penalty increment for a pass)
-            if proposer_give == ["Pass"] or (len(proposer_give) == 1 and proposer_give[0].upper() == "PASS"):
+            # Check for Pass
+            is_pass = proposer_give == ["Pass"] or (len(proposer_give) == 1 and proposer_give[0].upper() == "PASS")
+
+            # 👇 FIX IMPLEMENTATION: If proposer passes, negotiation ends immediately
+            if is_pass:
                 print(f"  -> {proposer_id.upper()} passes. Negotiation ends.")
-                # record history already taken care of by agent; just break
-                trade_made = False
-                break
+                negotiation_ended = True  # Set flag to terminate outer loop
+                break  # Exit the inner loop (proposers)
 
             # Count this as an offer made by proposer
             offers_made[proposer_id] += 1
@@ -214,14 +222,14 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
                 print(f"     - P2 Chips: {dict(game.states['p2'].chips)}")
 
                 trade_made = True
-                break
+                negotiation_ended = True  # Set flag to terminate outer loop
+                break  # Exit the inner loop (proposers)
             else:
                 print(f"  -> {responder_id.upper()} REJECTS the trade.")
 
         # end for proposer loop
         # If a trade was made or a pass ended negotiation, stop negotiating
-        # (Note: pass sets proposer_give == ["Pass"] and breaks out earlier)
-        if trade_made or (proposer_give == ["Pass"]):
+        if negotiation_ended:
             break
 
     print("\n" + "=" * 60)
