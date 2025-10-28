@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict, Set, Optional
 
 # --- Configuration Constants ---
 BOARD_SIZE = 5
-COLORS = ["BROWN", "DARK ORANGE", "LIGHT ORANGE", "YELLOW", "BEIGE"]
+COLORS = ["RE", "BL", "YE", "GR", "OR"]
 START_POS = (2, 2)
 
 # --- Scoring Constants (from the paper's general scoring scheme) ---
@@ -158,28 +158,49 @@ class ColoredTrails:
 
         return max_score, final_steps, final_unused_chip_value
 
-    def apply_trade(self, p1_id: str, p2_id: str, p1_give: str, p1_receive: str):
-        """Applies a successful trade between two players."""
+    def apply_trade(self, p1_id: str, p2_id: str, p1_give: List[str], p1_receive: List[str]):
+        """
+        Applies a successful trade between two players.
+        Now supports multi-chip trades (e.g., 2-for-1, 3-for-2, etc.)
 
-        # Check if the trade is valid (sanity check)
-        if self.states[p1_id].chips.get(p1_give, 0) < 1 or \
-                self.states[p2_id].chips.get(p1_receive, 0) < 1:
-            print("ERROR: Attempted to apply an invalid trade (player missing chip).")
-            return
+        :param p1_id: ID of the proposing player
+        :param p2_id: ID of the responding player
+        :param p1_give: List of chips p1 gives away
+        :param p1_receive: List of chips p1 receives
+        """
 
-        # P1 gives, P2 receives
-        self.states[p1_id].chips[p1_give] -= 1
-        if self.states[p1_id].chips[p1_give] == 0:
-            del self.states[p1_id].chips[p1_give]
+        # Validate that p1 has all the chips they're offering
+        p1_give_counter = Counter(p1_give)
+        for chip, count in p1_give_counter.items():
+            if self.states[p1_id].chips.get(chip, 0) < count:
+                print(
+                    f"ERROR: {p1_id} doesn't have enough {chip} chips to trade (needs {count}, has {self.states[p1_id].chips.get(chip, 0)})")
+                return False
 
-        self.states[p2_id].chips[p1_give] = self.states[p2_id].chips.get(p1_give, 0) + 1
+        # Validate that p2 has all the chips p1 wants to receive
+        p1_receive_counter = Counter(p1_receive)
+        for chip, count in p1_receive_counter.items():
+            if self.states[p2_id].chips.get(chip, 0) < count:
+                print(
+                    f"ERROR: {p2_id} doesn't have enough {chip} chips to trade (needs {count}, has {self.states[p2_id].chips.get(chip, 0)})")
+                return False
 
-        # P1 receives, P2 gives
-        self.states[p1_id].chips[p1_receive] = self.states[p1_id].chips.get(p1_receive, 0) + 1
+        # Execute the trade
+        # P1 gives chips to P2
+        for chip in p1_give:
+            self.states[p1_id].chips[chip] -= 1
+            if self.states[p1_id].chips[chip] == 0:
+                del self.states[p1_id].chips[chip]
+            self.states[p2_id].chips[chip] = self.states[p2_id].chips.get(chip, 0) + 1
 
-        self.states[p2_id].chips[p1_receive] -= 1
-        if self.states[p2_id].chips[p1_receive] == 0:
-            del self.states[p2_id].chips[p1_receive]
+        # P1 receives chips from P2
+        for chip in p1_receive:
+            self.states[p2_id].chips[chip] -= 1
+            if self.states[p2_id].chips[chip] == 0:
+                del self.states[p2_id].chips[chip]
+            self.states[p1_id].chips[chip] = self.states[p1_id].chips.get(chip, 0) + 1
+
+        return True
 
     @staticmethod
     def generate_random_game() -> Tuple[List[List[str]], Dict[str, GameState]]:

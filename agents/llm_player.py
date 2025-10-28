@@ -18,14 +18,8 @@ print(f"used api key: {api_key}")
 
 class LLMPlayer:
     """
-    LLM-backed player. Mirrors GreedyPlayer structure but asks an LLM to:
-      - Propose a trade when it's this agent's turn.
-      - Accept/Reject a proposal when evaluating an opponent offer.
-
-    The prompt includes:
-      - Your current chips
-      - A list of legal candidate trades and *their precomputed utilities/gains* for this agent
-      - Negotiation history (previous proposals/decisions)
+    LLM-backed player that supports multi-chip trades.
+    The prompt allows any chip redistribution (e.g., 1-for-1, 3-for-1, 1-for-2, etc.)
     """
 
     def __init__(self, player_id: str, game_env: ColoredTrails):
@@ -33,12 +27,10 @@ class LLMPlayer:
         self.opponent_id = "p2" if player_id == "p1" else "p1"
         self.game = game_env
         self.COLORS = COLORS
-        self.proposed_trades: Set[Tuple[str, str]] = set()
+        self.proposed_trades: Set[Tuple[Tuple[str, ...], Tuple[str, ...]]] = set()
         self.history: List[str] = []
-        # Use the same client pattern you provided
         self.client = InferenceClient(model="meta-llama/Llama-3.1-8B-Instruct", token=api_key)
 
-    # -- Utility calculation reused from greedy_player approach --
     def calculate_utility(self, new_chips: Dict[str, int]) -> int:
         temp_state = GameState(goal_pos=self.game.states[self.player_id].goal_pos,
                                chips=Counter(new_chips))
@@ -50,7 +42,6 @@ class LLMPlayer:
         max_score, _, _ = temp_game.get_max_score_and_path(self.player_id)
         return max_score
 
-    # -- LLM query wrapper using your conversational style fallback logic --
     def query_llm(self, prompt: str, max_tokens: int = 256, stop: List[str] | None = None) -> str:
         try:
             _prompt = [{"role": "user", "content": prompt}]
@@ -59,10 +50,9 @@ class LLMPlayer:
                 max_tokens=max_tokens,
                 stop=stop or ["\n\n"]
             )
-            # depends on response shape; adapt defensively
+            print(f"Raw response: {response}")
             return response.choices[0].message.content.strip()
         except Exception as e:
-            # fallback to conversational API if chat fails
             if "not supported" in str(e).lower() and "conversational" in str(e).lower():
                 try:
                     conv = self.client.conversational(prompt)
@@ -73,184 +63,187 @@ class LLMPlayer:
             print(f"[{self.player_id}] LLM call failed ({e}). Defaulting to 'Pass'.")
             return "Pass"
 
-    # -- Parse LLM response for trade proposal (accept multiple formats) --
-    def _parse_trade_response(self, text: str, legal_trades: List[Tuple[str, str]]) -> Tuple[str, str, str]:
+    def _parse_trade_response(self, text: str) -> Tuple[List[str], List[str]]:
         """
-        Returns (give, receive, reasoning)
-        If pass: returns ("Pass","Pass", reasoning)
+        Returns (give_list, receive_list)
+        If pass: returns (["Pass"], ["Pass"])
+        Only accepts valid JSON format.
         """
         text_raw = (text or "").strip()
-        text_upper = text_raw.upper()
 
-        # Try JSON first ({"action": {"give": "...", "receive": "..."}, "reasoning":"..."})
         try:
             parsed = json.loads(text_raw)
-            action = parsed.get("action")
-            reasoning = parsed.get("reasoning", "")
-            if isinstance(action, dict):
-                give = action.get("give", "Pass")
-                receive = action.get("receive", "Pass")
-                return give, receive, reasoning
-            if isinstance(action, str) and action.upper() == "PASS":
-                return "Pass", "Pass", reasoning
+            give = parsed.get("give", "Pass")
+            receive = parsed.get("receive", "Pass")
+
+            # Handle both string and list formats
+            if isinstance(give, str):
+                if give.upper() == "PASS":
+                    give_list = ["Pass"]
+                else:
+                    give_list = [give]
+            elif isinstance(give, list):
+                give_list = give if give else ["Pass"]
+            else:
+                give_list = ["Pass"]
+
+            if isinstance(receive, str):
+                if receive.upper() == "PASS":
+                    receive_list = ["Pass"]
+                else:
+                    receive_list = [receive]
+            elif isinstance(receive, list):
+                receive_list = receive if receive else ["Pass"]
+            else:
+                receive_list = ["Pass"]
+
+            return give_list, receive_list
         except Exception:
             pass
 
-        # If response contains PASS
-        if "PASS" in text_upper:
-            # extract possible appended reasoning
-            return "Pass", "Pass", text_raw
+        print("WRONG FORMAT - Expected valid JSON only")
+        return ["Pass"], ["Pass"]
 
-        # Try tuple-like e.g. (BROWN, YELLOW) or "BROWN for YELLOW"
-        legal_set = set(legal_trades)
-        # normalize text for searching
-        normalized = text_upper.replace("'", "").replace('"', "")
-        # Look for "FOR" pattern
-        if " FOR " in normalized:
-            parts = [p.strip() for p in normalized.split(" FOR ")]
-            if len(parts) >= 2:
-                give = parts[0].strip().title()
-                receive = parts[1].split()[0].strip().title()
-                if (give, receive) in legal_set:
-                    return give, receive, text_raw
+    def _format_board_state(self) -> str:
+        """Creates a clean board representation with only color codes."""
+        board_str = ""
+        for r in range(5):
+            row = []
+            for c in range(5):
+                cell = self.game.board[r][c]
+                row.append(cell[:2])
+            board_str += " ".join(f"{item:4}" for item in row) + "\n"
+        return board_str.strip()
 
-        # Look for words matching a legal pair
-        for give, recv in legal_set:
-            if give.upper() in normalized and recv.upper() in normalized:
-                return give, recv, text_raw
-
-        # Last resort: pick the best trade by utility if available in legal_trades
-        if legal_trades:
-            # choose random fallback but also provide reasoning that LLM response couldn't be parsed
-            fallback = random.choice(legal_trades)
-            return fallback[0], fallback[1], f"Could not parse LLM response. Fallback to {fallback}."
-
-        return "Pass", "Pass", "Could not parse LLM response."
-
-    # -- Build list of legal trades with precomputed utility gains --
-    def _compute_candidate_trades_with_gain(self) -> List[Dict[str, Any]]:
-        my_chips = self.game.states[self.player_id].chips
-        if not my_chips:
-            return []
-
-        current_utility = self.calculate_utility(dict(my_chips))
-        candidates = []
-
-        for give in list(my_chips.keys()):
-            if my_chips[give] == 0:
-                continue
-            for receive in self.COLORS:
-                if give == receive:
-                    continue
-                trade = (give, receive)
-                if trade in self.proposed_trades:
-                    continue
-                # simulate
-                hypo = dict(my_chips)
-                hypo[give] -= 1
-                if hypo[give] == 0:
-                    del hypo[give]
-                hypo[receive] = hypo.get(receive, 0) + 1
-                new_util = self.calculate_utility(dict(hypo))
-                gain = new_util - current_utility
-                candidates.append({"give": give, "receive": receive, "gain": gain})
-        return candidates
-
-    # -- Proposer API: propose_trade() --
-    def propose_trade(self) -> Tuple[str, str]:
+    def propose_trade(self) -> Tuple[List[str], List[str]]:
         my_chips = self.game.states[self.player_id].chips
         if not my_chips:
             print(f"  [{self.player_id}] No chips to trade.")
-            return "Pass", "Pass"
+            return ["Pass"], ["Pass"]
 
-        candidates = self._compute_candidate_trades_with_gain()
+        goal_pos = self.game.states[self.player_id].goal_pos
+        prompt = f"""
+GAME RULES:
+- You are Player {self.player_id.upper()} in the Colored Trails game, and your opponent is Player {self.opponent_id.upper()}.
+- Your objective is to move as close as possible to your goal location.
+- You can only move to adjacent tiles, not diagonally.
+- Each move costs one chip of the same color as the tile you move onto.
+- You do not need to pay for the start location, but you do need to pay for the goal location.
+- Before moving, a negotiation phase takes place, where the two players may propose any redistribution of chips (e.g., 1-for-1, 3-for-1, 1-for-2, etc.).
+- If the proposal is rejected, it becomes the other player's turn to propose. If the proposal is accepted or if a player passes, the redistribution becomes final and the negotiation immediately ends.
+- Negotiation can continue for up to 5 rounds, alternating turns after each rejection.
+- After a trade or a pass, both players immediately try to move as close as possible to their goal location.
 
-        # Filter for positive gains only and sort by utility (descending)
-        candidates = [c for c in candidates if c["gain"] > 0]
-        candidates.sort(key=lambda x: x["gain"], reverse=True)
+SCORING:
+- +100 points per step closer to your goal
+- +500 points for reaching your goal
+- +50 points for each unused chip
+- -1 point per negotiation round
 
-        if not candidates:
-            print(f"  [{self.player_id}] No candidate trades with positive gain (or all previously proposed). Passing.")
-            return "Pass", "Pass"
+GAME STATE (5x5):
+{self._format_board_state()}
+- Start position: row 2, column 2
+- Goal position: row {goal_pos[0]}, column {goal_pos[1]}
+- Your chips: {dict(self.game.states[self.player_id].chips)}
+- Opponent's chips: {dict(self.game.states[self.opponent_id].chips)}
+- Negotiation history:
+{chr(10).join(self.history) if self.history else '(none)'}
 
-        # prepare a compact legal_trades for parsing/fallback
-        legal_trades = [(c["give"], c["receive"]) for c in candidates]
-
-        # Build prompt (includes possible trades + their gains and history)
-        prompt = (
-            f"You are Player {self.player_id.upper()} in the Colored Trails negotiation.\n"
-            f"Your current chips: {dict(self.game.states[self.player_id].chips)}\n"
-            f"Your goal: {self.game.states[self.player_id].goal_pos}\n"
-            f"Your current utility (precomputed): {self.calculate_utility(dict(self.game.states[self.player_id].chips))}\n\n"
-            "Below are legal candidate one-for-one trades and their precomputed utility GAIN if you propose that trade:\n"
-            f"{json.dumps(candidates, indent=2)}\n\n"
-            "Negotiation history (most recent last):\n"
-            f"{chr(10).join(self.history) if self.history else '(none)'}\n\n"
-            "Choose ONE trade to PROPOSE that maximizes your expected final outcome, taking into account that "
-            "the opponent may accept or reject.\n"
-            "If possible, use theory of mind based on the history of previous moves.\n"
-            "Return a valid JSON like:\n"
-            '{"action": {"give": "BROWN", "receive": "YELLOW"}, "reasoning": "your reasoning"}\n'
-            "Respond ONLY with your chosen action plus reasoning."
-        )
+WHAT TO DO:
+- You are allowed to propose ONE trade
+- Output ONLY the proposed trade in the JSON format below:
+- {{"give": ["COLOR1", "COLOR2", ...], "receive": ["COLOR1", "COLOR2", ...]}}
+- If you don't need any trade, output:
+- {{"give": ["PASS"], "receive": ["PASS"]}}
+"""
 
         print(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
         llm_output = self.query_llm(prompt, max_tokens=256, stop=["\n\n"])
-        give, receive, reasoning = self._parse_trade_response(llm_output, legal_trades)
+        give_list, receive_list = self._parse_trade_response(llm_output)
 
-        # # Normalize Pass
-        # if give == "Pass" and receive == "Pass":
-        #     print(f"  [{self.player_id}] LLM chose to PASS. Reasoning: {reasoning}")
-        #     self.history.append(f"{self.player_id} PASSED (reason: {reasoning})")
-        #     return "Pass", "Pass"
+        # Record proposed trade to avoid repetition
+        trade_key = (tuple(sorted(give_list)), tuple(sorted(receive_list)))
+        self.proposed_trades.add(trade_key)
 
-        # record proposed trade to avoid repetition
-        self.proposed_trades.add((give, receive))
-        log_msg = f"{self.player_id} proposed trade: GIVE {give} for RECEIVE {receive}"
-        print(f"  [{self.player_id}] {log_msg}. Reasoning: {reasoning}")
+        log_msg = f"{self.player_id} proposed trade: GIVE {give_list} for RECEIVE {receive_list}"
+        print(f"  [{self.player_id}] {log_msg}")
         self.history.append(log_msg)
-        return give, receive
+        return give_list, receive_list
 
-    # -- Responder API: evaluate_proposal() --
-    def evaluate_proposal(self, proposal: Tuple[str, str]) -> bool:
+    def evaluate_proposal(self, proposal: Tuple[List[str], List[str]]) -> bool:
         opp_give, opp_receive = proposal
         my_state = self.game.states[self.player_id]
 
-        if opp_give == "Pass":
+        if opp_give == ["Pass"] or (len(opp_give) == 1 and opp_give[0] == "Pass"):
             self.history.append(f"{self.opponent_id} PASSED")
             return True
 
-        # Quick sanity check: if we don't have the requested chip, can't accept
-        if my_state.chips.get(opp_receive, 0) < 1:
-            print(f"  [{self.player_id}] Cannot accept - missing {opp_receive}")
-            self.history.append(
-                f"{self.opponent_id} proposed {opp_give} for {opp_receive}. {self.player_id} REJECT")
-            return False
+        # Validate we have all requested chips
+        opp_receive_counter = Counter(opp_receive)
+        for chip, count in opp_receive_counter.items():
+            if my_state.chips.get(chip, 0) < count:
+                print(f"  [{self.player_id}] Cannot accept - missing {count}x {chip}")
+                self.history.append(
+                    f"{self.opponent_id} proposed {opp_give} for {opp_receive}. {self.player_id} REJECT")
+                return False
 
-        # compute utility change
+        # Compute utility change
         current_util = self.calculate_utility(dict(my_state.chips))
         hypo = dict(my_state.chips)
-        hypo[opp_give] = hypo.get(opp_give, 0) + 1
-        hypo[opp_receive] -= 1
-        if hypo[opp_receive] == 0:
-            del hypo[opp_receive]
+
+        # Add chips we receive
+        for chip in opp_give:
+            hypo[chip] = hypo.get(chip, 0) + 1
+
+        # Remove chips we give
+        for chip in opp_receive:
+            hypo[chip] -= 1
+            if hypo[chip] == 0:
+                del hypo[chip]
+
         new_util = self.calculate_utility(dict(hypo))
         gain = new_util - current_util
 
-        prompt = (
-            f"You are Player {self.player_id.upper()} evaluating a proposed trade.\n"
-            f"Your chips: {dict(my_state.chips)}\n"
-            f"Your goal: {my_state.goal_pos}\n"
-            f"Current utility (precomputed): {current_util}\n"
-            f"Offer: Opponent will GIVE you {opp_give} and wants {opp_receive} in return.\n"
-            f"If accepted, your new utility would be {new_util} (gain = {gain}).\n\n"
-            "History (most recent last):\n"
-            f"{chr(10).join(self.history) if self.history else '(none)'}\n\n"
-            "Decide whether to ACCEPT or REJECT the trade.\n"
-            'Respond with JSON: {"action": "ACCEPT" or "REJECT", "reasoning": "your reasoning here"}.'
-        )
+        goal_pos = self.game.states[self.player_id].goal_pos
+        prompt = f"""
+GAME RULES:
+- You are Player {self.player_id.upper()} in the Colored Trails game, and your opponent is Player {self.opponent_id.upper()}.
+- Your objective is to move as close as possible to your goal location.
+- You can only move to adjacent tiles, not diagonally.
+- Each move costs one chip of the same color as the tile you move onto.
+- You do not need to pay for the start location, but you do need to pay for the goal location.
+- Before moving, a negotiation phase takes place, where the two players may propose any redistribution of chips (e.g., 1-for-1, 3-for-1, 1-for-2, etc.).
+- If the proposal is rejected, it becomes the other player's turn to propose. If the proposal is accepted or if a player passes, the redistribution becomes final and the negotiation immediately ends.
+- Negotiation can continue for up to 5 rounds, alternating turns after each rejection.
+- After a trade or a pass, both players immediately try to move as close as possible to their goal location.
+
+SCORING:
+- +100 points per step closer to your goal
+- +500 points for reaching your goal
+- +50 points for each unused chip
+- -1 point per negotiation round
+
+GAME STATE (5x5):
+{self._format_board_state()}
+- Start position: row 2, column 2
+- Goal position: row {goal_pos[0]}, column {goal_pos[1]}
+- Your chips: {dict(self.game.states[self.player_id].chips)}
+- Opponent's chips: {dict(self.game.states[self.opponent_id].chips)}
+- Negotiation history:
+{chr(10).join(self.history) if self.history else '(none)'}
+
+PROPOSED TRADE:
+- Opponent offers: GIVE you {opp_give}, wants {opp_receive} in return
+
+WHAT TO DO:
+- Decide whether to accept or reject the trade.
+- Output ONLY your decision in the JSON format below: 
+- {{"action": "ACCEPT"}}
+- OR
+- {{"action": "REJECT"}}
+"""
 
         print(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
@@ -258,34 +251,29 @@ class LLMPlayer:
         llm_output = self.query_llm(prompt, max_tokens=180, stop=["\n\n"]).strip()
         out_upper = llm_output.upper()
 
-        # default parse: JSON then plain words
         try:
             parsed = json.loads(llm_output)
             action = parsed.get("action", "")
-            reasoning = parsed.get("reasoning", "")
             if isinstance(action, str):
                 action_upper = action.upper()
             else:
                 action_upper = str(action).upper()
         except Exception:
-            # fallback: look for words
-            reasoning = llm_output
+            print("WRONG FORMAT - Expected valid JSON only")
             if "ACCEPT" in out_upper and "REJECT" not in out_upper:
                 action_upper = "ACCEPT"
             elif "REJECT" in out_upper and "ACCEPT" not in out_upper:
                 action_upper = "REJECT"
             else:
-                # if neither clear, decide based on utility: accept if gain>0, else reject
                 action_upper = "ACCEPT" if gain > 0 else "REJECT"
-                reasoning += f" (ambiguous LLM output, fallback to utility: gain={gain})"
 
         accept = action_upper == "ACCEPT"
 
         if accept:
-            print(f"  [{self.player_id}] LLM decision: ACCEPT. Reasoning: {reasoning}")
+            print(f"  [{self.player_id}] LLM decision: ACCEPT")
             self.history.append(f"{self.player_id} ACCEPTED offer ({opp_give} for {opp_receive}).")
         else:
-            print(f"  [{self.player_id}] LLM decision: REJECT. Reasoning: {reasoning}")
+            print(f"  [{self.player_id}] LLM decision: REJECT")
             self.history.append(f"{self.player_id} REJECTED offer ({opp_give} for {opp_receive}).")
 
         return accept

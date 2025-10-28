@@ -3,7 +3,6 @@ import matplotlib.colors as mcolors
 import matplotlib.patheffects as pe
 import numpy as np
 
-# Import the core components, including the necessary module-level constants
 from game.colored_trails import (
     ColoredTrails,
     GameState,
@@ -12,20 +11,14 @@ from game.colored_trails import (
     START_POS,
     COLORS
 )
-# Import both player types
-from agents.greedy_player import GreedyPlayer
 from agents.llm_player import LLMPlayer
 
-MAX_NEGOTIATION_ROUNDS = 5  # Set a limit for the negotiation phase
+MAX_NEGOTIATION_ROUNDS = 5
 
-# Matplotlib color mapping configuration (Hot Desert color scheme)
-# 1. Define value mapping for the board strings
-COLOR_TO_VALUE = {"BROWN": 0, "DARK ORANGE": 1, "LIGHT ORANGE": 2, "YELLOW": 3, "BEIGE": 4}
-# 2. Define the actual colors for the colormap
-HEX_COLORS = ['#912C0C', '#F37031', '#F7A741', '#EFDE63', '#C59960']
+COLOR_TO_VALUE = {"RE": 0, "BL": 1, "YE": 2, "GR": 3, "OR": 4}
+HEX_COLORS = ['#DC143C', '#1E90FF', '#FFD700', '#32CD32', '#FF8C00']
 
 COLOR_MAP = mcolors.ListedColormap(HEX_COLORS)
-# 3. Define boundary positions for the colormap
 BOUNDS = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
 
@@ -33,25 +26,19 @@ NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
 def plot_game_state(game: ColoredTrails):
     """Generates and displays a Matplotlib visualization of the game board and state."""
 
-    # 1. Prepare Data Matrix
     board_matrix = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             board_matrix[r, c] = COLOR_TO_VALUE[game.board[r][c]]
 
-    # 2. Setup Plot
     fig, ax = plt.subplots(figsize=(6, 6))
-
-    # Draw the colored board
     cax = ax.imshow(board_matrix, cmap=COLOR_MAP, norm=NORM)
 
-    # Add grid lines
     ax.set_xticks(np.arange(-0.5, BOARD_SIZE, 1), minor=True)
     ax.set_yticks(np.arange(-0.5, BOARD_SIZE, 1), minor=True)
     ax.grid(which="minor", color="black", linestyle='-', linewidth=2)
     ax.tick_params(which="minor", size=0)
 
-    # Set tick labels (coordinates)
     ax.set_xticks(np.arange(BOARD_SIZE))
     ax.set_yticks(np.arange(BOARD_SIZE))
     ax.set_xticklabels(np.arange(BOARD_SIZE))
@@ -59,62 +46,104 @@ def plot_game_state(game: ColoredTrails):
     ax.set_xlabel("Column (C)")
     ax.set_ylabel("Row (R)")
 
-    # 3. Add Markers (Start and Goals)
     s_pos = START_POS
     g1_pos = game.states['p1'].goal_pos
     g2_pos = game.states['p2'].goal_pos
 
-    # Start Position (S)
     ax.text(s_pos[1], s_pos[0], 'S', ha='center', va='center', fontsize=20, color='black',
-            path_effects=[
-                pe.withStroke(linewidth=1, foreground='white')
-            ])
+            path_effects=[pe.withStroke(linewidth=1, foreground='white')])
 
-    # P1 Goal (1)
     ax.text(g1_pos[1], g1_pos[0], '1️', ha='center', va='center', fontsize=20, color='black',
-            path_effects=[
-                pe.withStroke(linewidth=1, foreground='white')
-            ])
+            path_effects=[pe.withStroke(linewidth=1, foreground='white')])
 
-    # P2 Goal (2)
-    # Use a different visual style if goals overlap, but for simplicity, just stack/overlay
     if g2_pos != g1_pos:
         ax.text(g2_pos[1], g2_pos[0], '2️', ha='center', va='center', fontsize=20, color='black',
-                path_effects=[
-                    pe.withStroke(linewidth=1, foreground='white')
-                ])
+                path_effects=[pe.withStroke(linewidth=1, foreground='white')])
 
-    # 5. Add Title
     title_text = "Colored Trails Board State"
-
-    # Use fig.suptitle for the main title
     fig.suptitle(title_text, fontsize=16, fontweight='bold')
-    plt.show()  # Display the plot
+    plt.show()
 
 
-def run_game_simulation(game: ColoredTrails, player_type: str = 'GREEDY'):
+def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
     """
     Runs the full simulation of the negotiation phase followed by scoring.
-    Each round now consists of both players making proposals (if they choose to).
+    Supports multi-chip trades (any redistribution).
+    player_type: 'LLM' (uses LLMPlayer) or 'GREEDY' (simple heuristic agent).
     """
 
-    # Select the agent class based on the passed argument
+    print("--- Starting negotiation phase. ---")
+
+    # Small local GreedyPlayer implementation for testing / non-LLM runs
+    class GreedyPlayer:
+        def __init__(self, player_id: str, game_env: ColoredTrails):
+            self.player_id = player_id
+            self.opponent_id = "p2" if player_id == "p1" else "p1"
+            self.game = game_env
+            self.history = []
+
+        def propose_trade(self):
+            # Greedy player never proposes (always passes)
+            self.history.append(f"{self.player_id} PASSED")
+            return ["Pass"], ["Pass"]
+
+        def evaluate_proposal(self, proposal):
+            # Accept only if the trade strictly improves the responder's utility.
+            opp_give, opp_receive = proposal
+            my_state = self.game.states[self.player_id]
+
+            if opp_give == ["Pass"]:
+                self.history.append(f"{self.opponent_id} PASSED")
+                return True
+
+            # Validate availability (responder must have the chips proposer asks for)
+            opp_receive_counter = {}
+            for chip in opp_receive:
+                opp_receive_counter[chip] = opp_receive_counter.get(chip, 0) + 1
+
+            for chip, count in opp_receive_counter.items():
+                if my_state.chips.get(chip, 0) < count:
+                    self.history.append(f"{self.player_id} REJECT (missing {chip})")
+                    return False
+
+            # compute utility delta
+            current_score, _, _ = self.game.get_max_score_and_path(self.player_id)
+
+            hypo = dict(my_state.chips)
+            # Responder receives opp_give
+            for chip in opp_give:
+                hypo[chip] = hypo.get(chip, 0) + 1
+            # Responder gives opp_receive
+            for chip in opp_receive:
+                hypo[chip] = hypo.get(chip, 0) - 1
+                if hypo[chip] == 0:
+                    del hypo[chip]
+
+            # Make a temporary state to compute utility
+            temp_state = {
+                self.player_id: GameState(goal_pos=self.game.states[self.player_id].goal_pos, chips=hypo),
+                self.opponent_id: self.game.states[self.opponent_id]
+            }
+            temp_game = ColoredTrails(self.game.board, temp_state)
+            new_score, _, _ = temp_game.get_max_score_and_path(self.player_id)
+
+            accept = new_score > current_score
+            self.history.append(f"{self.player_id} {'ACCEPTED' if accept else 'REJECTED'} offer ({opp_give} for {opp_receive})")
+            return accept
+
+    # Build agents according to the requested type
     if player_type.upper() == 'LLM':
-        AgentClass = LLMPlayer
-        print("--- Using LLMPlayer for negotiation. ---")
+        player_agents = {
+            'p1': LLMPlayer(player_id='p1', game_env=game),
+            'p2': LLMPlayer(player_id='p2', game_env=game)
+        }
     else:
-        AgentClass = GreedyPlayer
-        print("--- Using GreedyPlayer for negotiation. ---")
+        player_agents = {
+            'p1': GreedyPlayer(player_id='p1', game_env=game),
+            'p2': GreedyPlayer(player_id='p2', game_env=game)
+        }
 
-    # Initialize the players using the selected class
-    player_agents = {
-        'p1': AgentClass(player_id='p1', game_env=game),
-        'p2': AgentClass(player_id='p2', game_env=game)
-    }
-
-    # Track how many offers each player made (for penalty calculation)
     offers_made = {'p1': 0, 'p2': 0}
-
     trade_made = False
 
     print("\n" + "=" * 60)
@@ -125,63 +154,74 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'GREEDY'):
         chip_str = ", ".join([f"{count}x{color}" for color, count in state.chips.items()])
         print(f" - {player_id.upper()} (Goal:{state.goal_pos}): {chip_str}")
 
-    # We use offers_made to track the negotiation penalty per player
+    # Negotiation loop: up to MAX_NEGOTIATION_ROUNDS rounds; each round p1 then p2 propose
     for round_num in range(1, MAX_NEGOTIATION_ROUNDS + 1):
         print(f"\n{'=' * 60}")
         print(f"ROUND {round_num}")
         print(f"{'=' * 60}")
 
-        # Each round, both players get a chance to propose
         for proposer_id in ['p1', 'p2']:
             responder_id = 'p2' if proposer_id == 'p1' else 'p1'
             proposer_agent = player_agents[proposer_id]
             responder_agent = player_agents[responder_id]
 
-            # Proposer makes an offer (Give_Chip, Receive_Chip)
+            print(f"\n--- {proposer_id.upper()}'s Turn to Propose ---")
             proposer_give, proposer_receive = proposer_agent.propose_trade()
 
-            print(f"\n--- {proposer_id.upper()}'s Turn ---")
+            # Normalize possible string "Pass" vs list ["Pass"]
+            if isinstance(proposer_give, str):
+                proposer_give = [proposer_give]
+            if isinstance(proposer_receive, str):
+                proposer_receive = [proposer_receive]
 
-            if proposer_give == "Pass":
+            # If proposer passes, negotiation ends immediately (no penalty increment for a pass)
+            if proposer_give == ["Pass"] or (len(proposer_give) == 1 and proposer_give[0].upper() == "PASS"):
                 print(f"  -> {proposer_id.upper()} passes. Negotiation ends.")
-                trade_made = True  # Use this flag to break out of both loops
-                break  # Break out of player loop
+                # record history already taken care of by agent; just break
+                trade_made = False
+                break
 
-            # Count this as an offer made
+            # Count this as an offer made by proposer
             offers_made[proposer_id] += 1
 
             print(
                 f"  -> PROPOSAL: {proposer_id.upper()} offers to GIVE: {proposer_give} "
-                f"for RECEIVING: {proposer_receive} from {responder_id.upper()}")
+                f"for RECEIVING: {proposer_receive} from {responder_id.upper()}"
+            )
 
             # Responder evaluates the offer
-            # The offer is: Responder gives `proposer_receive` and receives `proposer_give`
+            # Note semantics: proposer_give = chips proposer gives (so responder receives these),
+            # proposer_receive = chips proposer wants (so responder must give these)
             responder_proposal = (proposer_give, proposer_receive)
             acceptance = responder_agent.evaluate_proposal(responder_proposal)
 
             if acceptance:
                 print(f"  -> {responder_id.upper()} ACCEPTS the trade!")
-                # Apply the trade to the central game state
-                game.apply_trade(
+                ok = game.apply_trade(
                     p1_id=proposer_id,
                     p2_id=responder_id,
                     p1_give=proposer_give,
                     p1_receive=proposer_receive
                 )
-                trade_made = True
+                if not ok:
+                    print("  -> Trade application failed due to invalid availability. Continue negotiation.")
+                    # if trade failed due to validation, treat as rejection for negotiation continuation
+                    continue
 
                 # Print the immediate result of the trade
                 print(f"  -> Chips after trade:")
                 print(f"     - P1 Chips: {dict(game.states['p1'].chips)}")
                 print(f"     - P2 Chips: {dict(game.states['p2'].chips)}")
 
-                # NEW: End negotiation immediately after a successful trade
+                trade_made = True
                 break
             else:
                 print(f"  -> {responder_id.upper()} REJECTS the trade.")
 
-        # If a trade was made, break out of the round loop
-        if trade_made:
+        # end for proposer loop
+        # If a trade was made or a pass ended negotiation, stop negotiating
+        # (Note: pass sets proposer_give == ["Pass"] and breaks out earlier)
+        if trade_made or (proposer_give == ["Pass"]):
             break
 
     print("\n" + "=" * 60)
