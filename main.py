@@ -11,7 +11,7 @@ from game.colored_trails import (
     START_POS,
     COLORS
 )
-from agents.llm_player import LLMPlayer
+from agents.llm_player_gemini import LLMPlayer
 
 MAX_NEGOTIATION_ROUNDS = 5
 

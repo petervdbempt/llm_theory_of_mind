@@ -42,12 +42,11 @@ class LLMPlayer:
         max_score, _, _ = temp_game.get_max_score_and_path(self.player_id)
         return max_score
 
-    def query_llm(self, prompt: str, max_tokens: int = 256, stop: List[str] | None = None) -> str:
+    def query_llm(self, prompt: str, stop: List[str] | None = None) -> str:
         try:
             _prompt = [{"role": "user", "content": prompt}]
             response = self.client.chat_completion(
                 _prompt,
-                max_tokens=max_tokens,
                 stop=stop or ["\n\n"]
             )
             print(f"Raw response: {response}")
@@ -151,8 +150,8 @@ GAME STATE (5x5):
 
 WHAT TO DO:
 - You are allowed to propose ONE trade
-- Output ONLY the proposed trade in the JSON format below:
-- {{"give": ["COLOR1", "COLOR2", ...], "receive": ["COLOR1", "COLOR2", ...]}}
+- Respond with ONLY the proposed trade in the JSON format below:
+- {{"give": ["COLOR", ...], "receive": ["COLOR", ...]}}
 - If you don't need any trade, output:
 - {{"give": ["PASS"], "receive": ["PASS"]}}
 """
@@ -160,7 +159,7 @@ WHAT TO DO:
         print(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
-        llm_output = self.query_llm(prompt, max_tokens=256, stop=["\n\n"])
+        llm_output = self.query_llm(prompt, stop=["\n\n"])
         give_list, receive_list = self._parse_trade_response(llm_output)
 
         # Record proposed trade to avoid repetition
@@ -239,7 +238,7 @@ PROPOSED TRADE:
 
 WHAT TO DO:
 - Decide whether to accept or reject the trade.
-- Output ONLY your decision in the JSON format below: 
+- Respond with ONLY your decision in the JSON format below: 
 - {{"action": "ACCEPT"}}
 - OR
 - {{"action": "REJECT"}}
@@ -248,7 +247,7 @@ WHAT TO DO:
         print(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
-        llm_output = self.query_llm(prompt, max_tokens=180, stop=["\n\n"]).strip()
+        llm_output = self.query_llm(prompt, stop=["\n\n"]).strip()
         out_upper = llm_output.upper()
 
         try:
