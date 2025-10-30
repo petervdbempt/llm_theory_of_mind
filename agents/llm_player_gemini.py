@@ -20,7 +20,7 @@ def read_api_key(filepath="API_token_gemini.txt"):
 
 
 api_key = read_api_key()
-print(f"used api key: {api_key}")
+# print(f"used api key: {api_key}")
 
 
 class LLMPlayer:

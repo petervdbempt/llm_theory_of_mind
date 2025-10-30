@@ -13,6 +13,7 @@ from game.colored_trails import (
 )
 # Assuming LLMPlayer is correctly importing and configured
 from agents.llm_player import LLMPlayer
+from agents.llm_player_claude import ClaudePlayer
 
 MAX_NEGOTIATION_ROUNDS = 5
 
@@ -22,6 +23,15 @@ HEX_COLORS = ['#DC143C', '#1E90FF', '#FFD700', '#32CD32', '#FF8C00']
 COLOR_MAP = mcolors.ListedColormap(HEX_COLORS)
 BOUNDS = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
+
+def llm_player_builder(player_id, game_env, player_type):
+    if player_type.upper() == 'LLM':
+        return LLMPlayer(player_id, game_env)
+    elif player_type.upper() == 'CLAUDE':
+        return ClaudePlayer(player_id, game_env)
+    else:
+        raise ValueError(f"Unsupported player type: {player_type}")
+    
 
 
 def plot_game_state(game: ColoredTrails):
@@ -134,10 +144,10 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
             return accept
 
     # Build agents according to the requested type
-    if player_type.upper() == 'LLM':
+    if player_type.upper() != 'GREEDY':
         player_agents = {
-            'p1': LLMPlayer(player_id='p1', game_env=game),
-            'p2': LLMPlayer(player_id='p2', game_env=game)
+            'p1': llm_player_builder(player_id='p1', game_env=game, player_type=player_type),
+            'p2': llm_player_builder(player_id='p2', game_env=game,player_type=player_type)
         }
     else:
         player_agents = {
@@ -277,7 +287,8 @@ if __name__ == "__main__":
     game = ColoredTrails(board_map, player_states)
 
     # Set the desired player type here. Options: 'GREEDY' or 'LLM'
-    AGENT_TO_USE = 'LLM'
+    # AGENT_TO_USE = 'LLM'
+    AGENT_TO_USE = 'CLAUDE'
 
     # Run the simulation and plot the result
     run_game_simulation(game, player_type=AGENT_TO_USE)
