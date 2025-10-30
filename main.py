@@ -1,3 +1,5 @@
+import argparse
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patheffects as pe
@@ -9,11 +11,13 @@ from game.colored_trails import (
     PENALTY_PER_ROUND,
     BOARD_SIZE,
     START_POS,
-    COLORS
+    COLORS, load_scenario_json, save_scenario_json
 )
 # Assuming LLMPlayer is correctly importing and configured
 from agents.llm_player import LLMPlayer
 from agents.llm_player_claude import ClaudePlayer
+from agents.llm_player_gemini import LLMPlayer as GeminiPlayer
+
 
 MAX_NEGOTIATION_ROUNDS = 5
 
@@ -29,9 +33,50 @@ def llm_player_builder(player_id, game_env, player_type):
         return LLMPlayer(player_id, game_env)
     elif player_type.upper() == 'CLAUDE':
         return ClaudePlayer(player_id, game_env)
+    elif player_type.upper() == 'GEMINI':
+        return GeminiPlayer(player_id, game_env)
     else:
         raise ValueError(f"Unsupported player type: {player_type}")
     
+
+
+def set_global_seed(seed: int):
+    """
+    Optional: make other libs deterministic too (numpy/matplotlib).
+    Your generator already uses a local RNG, so this is just for completeness.
+    """
+    import random
+    random.seed(seed)
+    np.random.seed(seed)
+
+
+def print_quick_metrics(game: ColoredTrails):
+    """
+    Quick “is this interesting?” snapshot:
+    - min steps/score for each player
+    - distance between goals
+    - board color histogram vs chips
+    """
+    p1_score, p1_steps, _ = game.get_max_score_and_path('p1')
+    p2_score, p2_steps, _ = game.get_max_score_and_path('p2')
+    g1 = game.states['p1'].goal_pos
+    g2 = game.states['p2'].goal_pos
+    goal_sep = abs(g1[0]-g2[0]) + abs(g1[1]-g2[1])
+
+    # board color histogram
+    hist = {c: 0 for c in COLORS}
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+            hist[game.board[r][c]] += 1
+
+    print("\n--- QUICK METRICS ---")
+    print(f" P1: steps_to_goal={p1_steps}, path_score={p1_score}")
+    print(f" P2: steps_to_goal={p2_steps}, path_score={p2_score}")
+    print(f" Goal distance (Manhattan): {goal_sep}")
+    print(" Board color counts:", hist)
+    print(" P1 chips:", dict(game.states['p1'].chips))
+    print(" P2 chips:", dict(game.states['p2'].chips))
+
 
 
 def plot_game_state(game: ColoredTrails):
@@ -281,14 +326,58 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
     plot_game_state(game)
 
 
+def parse_args():
+    p = argparse.ArgumentParser(description="Colored Trails runner with reproducible scenarios.")
+    p.add_argument("--seed", type=int, default=None, help="Deterministic seed for board/chips/goals.")
+    p.add_argument("--save-scenario", type=str, default=None, help="Path to save current scenario JSON.")
+    p.add_argument("--load-scenario", type=str, default=None, help="Path to load an existing scenario JSON.")
+    p.add_argument("--agent", type=str, default="LLM", choices=["LLM", "GREEDY"], help="Agent type to run.")
+    p.add_argument("--set-global-seed", action="store_true",
+                   help="Also set global seeds (numpy, python random) for full determinism.")
+    return p.parse_args()
+
+
 if __name__ == "__main__":
-    # Set up the game
-    board_map, player_states = ColoredTrails.generate_random_game()
-    game = ColoredTrails(board_map, player_states)
+    args = parse_args()
+
+    if args.set_global_seed and args.seed is not None:
+        set_global_seed(args.seed)
 
     # Set the desired player type here. Options: 'GREEDY' or 'LLM'
     # AGENT_TO_USE = 'LLM'
     AGENT_TO_USE = 'CLAUDE'
+    # Build or load game
+    if args.load_scenario:
+        board_map, player_states = load_scenario_json(args.load_scenario)
+        seed_used = None  # unknown; scenario is authoritative
+        print(f"Loaded scenario from {args.load_scenario}")
+    else:
+        board_map, player_states = ColoredTrails.generate_random_game(seed=args.seed)
+        seed_used = args.seed
+        if seed_used is not None:
+            print(f"Generated new scenario with seed={seed_used}")
 
-    # Run the simulation and plot the result
-    run_game_simulation(game, player_type=AGENT_TO_USE)
+    game = ColoredTrails(board_map, player_states)
+
+    # Quick metrics to help you judge “is this good?”
+    print_quick_metrics(game)
+
+    # Optionally save the scenario snapshot (recommended if you like it)
+    if args.save_scenario:
+        save_scenario_json(args.save_scenario, board_map, player_states, seed=seed_used)
+        print(f"Scenario saved to {args.save_scenario}")
+
+    # Run
+    run_game_simulation(game, player_type=args.agent)
+
+#
+# if __name__ == "__main__":
+#     # Set up the game
+#     board_map, player_states = ColoredTrails.generate_random_game()
+#     game = ColoredTrails(board_map, player_states)
+#
+#     # Set the desired player type here. Options: 'GREEDY' or 'LLM'
+#     AGENT_TO_USE = 'LLM'
+#
+#     # Run the simulation and plot the result
+#     run_game_simulation(game, player_type=AGENT_TO_USE)
