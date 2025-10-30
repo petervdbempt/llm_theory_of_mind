@@ -331,7 +331,7 @@ def parse_args():
     p.add_argument("--seed", type=int, default=None, help="Deterministic seed for board/chips/goals.")
     p.add_argument("--save-scenario", type=str, default=None, help="Path to save current scenario JSON.")
     p.add_argument("--load-scenario", type=str, default=None, help="Path to load an existing scenario JSON.")
-    p.add_argument("--agent", type=str, default="LLM", choices=["LLM", "GREEDY"], help="Agent type to run.")
+    p.add_argument("--agent", type=str, default="LLM", choices=["LLM", "GREEDY", "CLAUDE", "GEMINI"], help="Agent type to run.")
     p.add_argument("--set-global-seed", action="store_true",
                    help="Also set global seeds (numpy, python random) for full determinism.")
     return p.parse_args()
@@ -345,7 +345,7 @@ if __name__ == "__main__":
 
     # Set the desired player type here. Options: 'GREEDY' or 'LLM'
     # AGENT_TO_USE = 'LLM'
-    AGENT_TO_USE = 'CLAUDE'
+    # AGENT_TO_USE = 'CLAUDE'
     # Build or load game
     if args.load_scenario:
         board_map, player_states = load_scenario_json(args.load_scenario)
