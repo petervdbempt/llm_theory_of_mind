@@ -13,7 +13,6 @@ from game.colored_trails import (
     START_POS,
     COLORS, load_scenario_json, save_scenario_json
 )
-# Assuming LLMPlayer is correctly importing and configured
 from agents.llm_player_gemini import LLMPlayer
 
 MAX_NEGOTIATION_ROUNDS = 5
@@ -27,29 +26,19 @@ NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
 
 
 def set_global_seed(seed: int):
-    """
-    Optional: make other libs deterministic too (numpy/matplotlib).
-    Your generator already uses a local RNG, so this is just for completeness.
-    """
+    # set a seed to increase reproducability
     import random
     random.seed(seed)
     np.random.seed(seed)
 
 
 def print_quick_metrics(game: ColoredTrails):
-    """
-    Quick “is this interesting?” snapshot:
-    - min steps/score for each player
-    - distance between goals
-    - board color histogram vs chips
-    """
+    # Function just to quickly see whether seed is promising and we should try it
     p1_score, p1_steps, _ = game.get_max_score_and_path('p1')
     p2_score, p2_steps, _ = game.get_max_score_and_path('p2')
     g1 = game.states['p1'].goal_pos
     g2 = game.states['p2'].goal_pos
-    goal_sep = abs(g1[0]-g2[0]) + abs(g1[1]-g2[1])
 
-    # board color histogram
     hist = {c: 0 for c in COLORS}
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
@@ -58,7 +47,6 @@ def print_quick_metrics(game: ColoredTrails):
     print("\n--- QUICK METRICS ---")
     print(f" P1: steps_to_goal={p1_steps}, path_score={p1_score}")
     print(f" P2: steps_to_goal={p2_steps}, path_score={p2_score}")
-    print(f" Goal distance (Manhattan): {goal_sep}")
     print(" Board color counts:", hist)
     print(" P1 chips:", dict(game.states['p1'].chips))
     print(" P2 chips:", dict(game.states['p2'].chips))
@@ -66,7 +54,7 @@ def print_quick_metrics(game: ColoredTrails):
 
 
 def plot_game_state(game: ColoredTrails):
-    """Generates and displays a Matplotlib visualization of the game board and state."""
+    # Generates and displays a Matplotlib visualization of the game board and state.
 
     board_matrix = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
     for r in range(BOARD_SIZE):
@@ -113,6 +101,10 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
     Supports multi-chip trades (any redistribution).
     player_type: 'LLM' (uses LLMPlayer) or 'GREEDY' (simple heuristic agent).
     """
+
+    # If trying out seeds uncomment lines below
+    # plot_game_state(game)
+    # exit()
 
     print("--- Starting negotiation phase. ---")
 
@@ -224,7 +216,6 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
             # Check for Pass
             is_pass = proposer_give == ["Pass"] or (len(proposer_give) == 1 and proposer_give[0].upper() == "PASS")
 
-            # 👇 FIX IMPLEMENTATION: If proposer passes, negotiation ends immediately
             if is_pass:
                 print(f"  -> {proposer_id.upper()} passes. Negotiation ends.")
                 negotiation_ended = True  # Set flag to terminate outer loop
@@ -239,7 +230,7 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
             )
 
             # Responder evaluates the offer
-            # Note semantics: proposer_give = chips proposer gives (so responder receives these),
+            # Note on our semantics: proposer_give = chips proposer gives (so responder receives these),
             # proposer_receive = chips proposer wants (so responder must give these)
             responder_proposal = (proposer_give, proposer_receive)
             acceptance = responder_agent.evaluate_proposal(responder_proposal)
@@ -308,7 +299,6 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
 
     print("=" * 60)
 
-    # --- VISUALIZE FINAL STATE ---
     plot_game_state(game)
 
 
@@ -329,10 +319,10 @@ if __name__ == "__main__":
     if args.set_global_seed and args.seed is not None:
         set_global_seed(args.seed)
 
-    # Build or load game
+    # Build or load game based on a seed
     if args.load_scenario:
         board_map, player_states = load_scenario_json(args.load_scenario)
-        seed_used = None  # unknown; scenario is authoritative
+        seed_used = None
         print(f"Loaded scenario from {args.load_scenario}")
     else:
         board_map, player_states = ColoredTrails.generate_random_game(seed=args.seed)
@@ -342,25 +332,12 @@ if __name__ == "__main__":
 
     game = ColoredTrails(board_map, player_states)
 
-    # Quick metrics to help you judge “is this good?”
+    # for seeing if seed is promising enough to waste time on
     print_quick_metrics(game)
 
-    # Optionally save the scenario snapshot (recommended if you like it)
+    # save the seed for quick load
     if args.save_scenario:
         save_scenario_json(args.save_scenario, board_map, player_states, seed=seed_used)
         print(f"Scenario saved to {args.save_scenario}")
 
-    # Run
     run_game_simulation(game, player_type=args.agent)
-
-#
-# if __name__ == "__main__":
-#     # Set up the game
-#     board_map, player_states = ColoredTrails.generate_random_game()
-#     game = ColoredTrails(board_map, player_states)
-#
-#     # Set the desired player type here. Options: 'GREEDY' or 'LLM'
-#     AGENT_TO_USE = 'LLM'
-#
-#     # Run the simulation and plot the result
-#     run_game_simulation(game, player_type=AGENT_TO_USE)
