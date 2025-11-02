@@ -193,9 +193,9 @@ GAME STATE (5x5):
 WHAT TO DO:
 - You are allowed to propose ONE trade
 - Output ONLY the proposed trade in the JSON format below:
-- {"give": ["COLOR", ...], "receive": ["COLOR", ...]}'
+- {{"give": ["COLOR", ...], "receive": ["COLOR", ...]}}'
 - If you don't need any trade, output:
-- {"give": "PASS", "receive": "PASS"}
+- {{"give": "PASS", "receive": "PASS"}}
 """
 
         print(
