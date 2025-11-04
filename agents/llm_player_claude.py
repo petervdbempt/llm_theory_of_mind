@@ -4,57 +4,40 @@ import re
 from typing import Dict, Tuple, Set, List, Any
 from collections import Counter
 
-# 👇 NEW IMPORTS for Claude
 import anthropic
-# 👆 NEW IMPORTS
+from utils.text_logger import TextLogger
 
-# Assuming you still have game.colored_trails and COLORS defined elsewhere
 from game.colored_trails import ColoredTrails, GameState, COLORS
 
-import sys
-sys.stdout.reconfigure(encoding='utf-8')
-
 def read_api_key(filepath="API_token_claude.txt"):
-    # Ensure this file contains your Claude API Key
     with open(filepath, "r") as f:
         return f.read().strip()
 
 
-# It's recommended to set the API key via environment variables,
-# but we will use the file-based approach from your example.
 api_key = read_api_key()
-# print(f"used api key: {api_key[:4]}...{api_key[-4:]}")
 
 
 class ClaudePlayer:
-    """
-    LLM-backed player that supports multi-chip trades, now using the Claude API.
-    """
-
-    def __init__(self, player_id: str, game_env: ColoredTrails):
+    def __init__(self, player_id: str, game_env: ColoredTrails, logger: TextLogger | None = None):
         self.player_id = player_id
         self.opponent_id = "p2" if player_id == "p1" else "p1"
         self.game = game_env
         self.COLORS = COLORS
         self.proposed_trades: Set[Tuple[Tuple[str, ...], Tuple[str, ...]]] = set()
         self.history: List[str] = []
+        self.logger = logger
 
-        # 👇 MODIFICATION: Initialize Claude client
-        try:
-            # The client will automatically use the API key from the environment
-            # variable ANTHROPIC_API_KEY if not explicitly provided.
-            self.client = anthropic.Anthropic(api_key=api_key)
-        except Exception as e:
-            print(f"Error initializing Claude client: {e}")
-            raise
+        self.client = anthropic.Anthropic(api_key=api_key)
 
-        # Recommended model for this kind of task
         self.model_name = "claude-sonnet-4-5"
-        # 👆 MODIFICATION
+        
+    def _log(self, msg: str):
+        if self.logger:
+            self.logger.log(f"[{self.player_id}] {msg}")
+        else:
+            print(f"[{self.player_id}] {msg}")
 
-    # (The utility, parsing, and formatting methods remain the same)
     def calculate_utility(self, new_chips: Dict[str, int]) -> int:
-        # ... (implementation remains the same)
         temp_state = GameState(goal_pos=self.game.states[self.player_id].goal_pos,
                                chips=Counter(new_chips))
         temp_states = {
@@ -66,15 +49,10 @@ class ClaudePlayer:
         return max_score
 
     def query_llm(self, prompt: str, stop: List[str] | None = None) -> str:
-        """
-        Queries the Claude model with the given prompt.
-        """
-        # 👇 MODIFICATION: Rewrite to use anthropic.Anthropic.messages.create
         try:
             response = self.client.messages.create(
                 model=self.model_name,
-                max_tokens=1024,  # Define a max token limit
-                # stop_sequences=s,
+                max_tokens=1024,
                 messages=[
                     {
                         "role": "user",
@@ -82,30 +60,20 @@ class ClaudePlayer:
                     }
                 ]
             )
-
-            # print(f"Raw response: {response}")
-            print(f"stripped response: { response.content[0].text.strip()}")
-            # The response object is a list of content blocks; we extract the text
+            self._log(f"stripped response: { response.content[0].text.strip()}")
             return response.content[0].text.strip()
-
         except Exception as e:
-            print(f"[{self.player_id}] LLM call failed ({e}). Defaulting to 'Pass'.")
+            self._log(f"[{self.player_id}] LLM call failed ({e}). Defaulting to 'Pass'.")
             return "Pass"
-        # 👆 MODIFICATION
 
     def _parse_trade_response(self, text: str) -> Tuple[List[str], List[str]]:
-        """
-        Robustly extracts the first valid JSON block and parses give/receive lists.
-        Falls back to ["Pass"], ["Pass"] if invalid.
-        """
         text_raw = (text or "").strip()
 
-        # Try to extract the first {...} JSON block using regex
         match = re.search(r"\{\s*\"(?:give|receive)\"\s*:\s*\[.*?\}\s*", text_raw, re.DOTALL)
         if match:
             json_str = match.group(0)
         else:
-            json_str = text_raw  # fallback if no braces found
+            json_str = text_raw
 
         try:
             parsed = json.loads(json_str)
@@ -125,12 +93,11 @@ class ClaudePlayer:
             return give_list, receive_list
 
         except Exception as e:
-            print(f"[WARN] _parse_trade_response failed to parse JSON: {e}")
-            print(f"Raw model output:\n{text_raw}")
+            self._log(f"[WARN] _parse_trade_response failed to parse JSON: {e}")
+            self._log(f"Raw model output:\n{text_raw}")
             return ["Pass"], ["Pass"]
 
     def _format_board_state(self) -> str:
-        # ... (implementation remains the same)
         board_str = ""
         for r in range(5):
             row = []
@@ -141,10 +108,9 @@ class ClaudePlayer:
         return board_str.strip()
 
     def propose_trade(self) -> Tuple[List[str], List[str]]:
-        # ... (implementation remains the same)
         my_chips = self.game.states[self.player_id].chips
         if not my_chips:
-            print(f"  [{self.player_id}] No chips to trade.")
+            self._log(f"  [{self.player_id}] No chips to trade.")
             return ["Pass"], ["Pass"]
 
         goal_pos = self.game.states[self.player_id].goal_pos
@@ -183,23 +149,21 @@ WHAT TO DO:
 - {{"give": ["PASS"], "receive": ["PASS"]}}
 """
 
-        print(
+        self._log(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
         llm_output = self.query_llm(prompt)
         give_list, receive_list = self._parse_trade_response(llm_output)
 
-        # Record proposed trade to avoid repetition
         trade_key = (tuple(sorted(give_list)), tuple(sorted(receive_list)))
         self.proposed_trades.add(trade_key)
 
         log_msg = f"{self.player_id} proposed trade: GIVE {give_list} for RECEIVE {receive_list}"
-        print(f"  [{self.player_id}] {log_msg}")
+        self._log(f"  [{self.player_id}] {log_msg}")
         self.history.append(log_msg)
         return give_list, receive_list
 
     def evaluate_proposal(self, proposal: Tuple[List[str], List[str]]) -> bool:
-        # ... (implementation remains the same)
         opp_give, opp_receive = proposal
         my_state = self.game.states[self.player_id]
 
@@ -207,24 +171,20 @@ WHAT TO DO:
             self.history.append(f"{self.opponent_id} PASSED")
             return True
 
-        # Validate we have all requested chips
         opp_receive_counter = Counter(opp_receive)
         for chip, count in opp_receive_counter.items():
             if my_state.chips.get(chip, 0) < count:
-                print(f"  [{self.player_id}] Cannot accept - missing {count}x {chip}")
+                self._log(f"  [{self.player_id}] Cannot accept - missing {count}x {chip}")
                 self.history.append(
                     f"{self.opponent_id} proposed {opp_give} for {opp_receive}. {self.player_id} REJECT")
                 return False
 
-        # Compute utility change
         current_util = self.calculate_utility(dict(my_state.chips))
         hypo = dict(my_state.chips)
 
-        # Add chips we receive
         for chip in opp_give:
             hypo[chip] = hypo.get(chip, 0) + 1
 
-        # Remove chips we give
         for chip in opp_receive:
             hypo[chip] -= 1
             if hypo[chip] == 0:
@@ -272,13 +232,12 @@ WHAT TO DO:
 - {{"action": "REJECT"}}
 """
 
-        print(
+        self._log(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
         llm_output = self.query_llm(prompt).strip()
         out_upper = llm_output.upper()
 
-        # Try to extract valid JSON even if mixed with text
         match = re.search(r"\{\s*\"action\"\s*:\s*\"(ACCEPT|REJECT)\".*?\}", llm_output, re.DOTALL | re.IGNORECASE)
         if match:
             json_str = match.group(0)
@@ -290,7 +249,7 @@ WHAT TO DO:
             action = parsed.get("action", "")
             action_upper = action.upper() if isinstance(action, str) else str(action).upper()
         except Exception:
-            print("[WARN] evaluate_proposal failed to parse JSON")
+            self._log("[WARN] evaluate_proposal failed to parse JSON")
             if "ACCEPT" in llm_output.upper() and "REJECT" not in llm_output.upper():
                 action_upper = "ACCEPT"
             elif "REJECT" in llm_output.upper() and "ACCEPT" not in llm_output.upper():
@@ -301,10 +260,10 @@ WHAT TO DO:
         accept = action_upper == "ACCEPT"
 
         if accept:
-            print(f"  [{self.player_id}] LLM decision: ACCEPT")
+            self._log(f"  [{self.player_id}] LLM decision: ACCEPT")
             self.history.append(f"{self.player_id} ACCEPTED offer ({opp_give} for {opp_receive}).")
         else:
-            print(f"  [{self.player_id}] LLM decision: REJECT")
+            self._log(f"  [{self.player_id}] LLM decision: REJECT")
             self.history.append(f"{self.player_id} REJECTED offer ({opp_give} for {opp_receive}).")
 
         return accept

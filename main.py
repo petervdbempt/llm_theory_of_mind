@@ -4,6 +4,15 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patheffects as pe
 import numpy as np
+from pathlib import Path
+from itertools import product
+from utils.text_logger import TextLogger
+
+import sys
+import io
+import statistics
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 from game.colored_trails import (
     ColoredTrails,
@@ -56,7 +65,7 @@ def print_quick_metrics(game: ColoredTrails):
     print(" P2 chips:", dict(game.states['p2'].chips))
 
 
-def plot_game_state(game: ColoredTrails):
+def plot_game_state(game: ColoredTrails, save=False, save_path: Path = None):
     # Generates and displays a Matplotlib visualization of the game board and state.
 
     board_matrix = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
@@ -95,11 +104,17 @@ def plot_game_state(game: ColoredTrails):
 
     title_text = "Colored Trails Board State"
     fig.suptitle(title_text, fontsize=16, fontweight='bold')
-    plt.show()
+    if not save:
+        plt.show()
+    else:
+        plt.savefig(save_path, dpi=150)
+    plt.close(fig)
+
 
 
 def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str = 'LLM',
-                        tom_order_p1: int = 1, tom_order_p2: int = 1):
+                        tom_order_p1: int = 1, tom_order_p2: int = 1, tournament=False,
+                        logger: TextLogger | None = None):
     """
     Runs the full simulation of the negotiation phase followed by scoring.
     Supports multiple agent types:
@@ -114,14 +129,26 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
         tom_order_p1: ToM order for p1 if p1_type='TOM' (0, 1, 2, ...)
         tom_order_p2: ToM order for p2 if p2_type='TOM' (0, 1, 2, ...)
     """
+    def log(msg):
+        if logger:
+            logger.log(msg)
+        else:
+            print(msg)
 
     # Small local GreedyPlayer implementation for testing / non-LLM runs
     class GreedyPlayer:
-        def __init__(self, player_id: str, game_env: ColoredTrails):
+        def __init__(self, player_id: str, game_env: ColoredTrails, logger: TextLogger | None = None):
             self.player_id = player_id
             self.opponent_id = "p2" if player_id == "p1" else "p1"
             self.game = game_env
             self.history = []
+            self.logger = logger
+            
+        def _log(self, msg: str):
+            if self.logger:
+                self.logger.log(f"[{self.player_id}] {msg}")
+            else:
+                print(f"[{self.player_id}] {msg}")
 
         def propose_trade(self):
             # Greedy player never proposes (always passes)
@@ -177,15 +204,15 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
     def create_agent(player_id: str, agent_type: str, tom_order: int):
         agent_type = agent_type.upper()
         if agent_type == 'LLM':
-            return LLMPlayer(player_id=player_id, game_env=game)
+            return LLMPlayer(player_id=player_id, game_env=game, logger=logger)
         elif agent_type == 'GREEDY':
-            return GreedyPlayer(player_id=player_id, game_env=game)
+            return GreedyPlayer(player_id=player_id, game_env=game, logger=logger)
         elif agent_type == 'TOM':
-            return ToMAgent(player_id=player_id, game_env=game, order=tom_order)
+            return ToMAgent(player_id=player_id, game_env=game, order=tom_order, logger=logger)
         elif agent_type == 'CLAUDE':
-            return ClaudePlayer(player_id=player_id, game_env=game)
+            return ClaudePlayer(player_id=player_id, game_env=game, logger=logger)
         elif agent_type == 'GEMINI':
-            return GeminiPlayer(player_id=player_id, game_env=game) 
+            return GeminiPlayer(player_id=player_id, game_env=game, logger=logger)
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -198,33 +225,33 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
     trade_made = False
     negotiation_ended = False
 
-    print("\n" + "=" * 60)
-    print("      COLORED TRAILS: STARTING NEGOTIATION LOG")
-    print("=" * 60)
-    print(f"\nAgent Configuration:")
-    print(f" - P1: {p1_type}" + (f" (Order {tom_order_p1})" if p1_type.upper() == 'TOM' else ""))
-    print(f" - P2: {p2_type}" + (f" (Order {tom_order_p2})" if p2_type.upper() == 'TOM' else ""))
+    log("\n" + "=" * 60)
+    log("      COLORED TRAILS: STARTING NEGOTIATION LOG")
+    log("=" * 60)
+    log(f"\nAgent Configuration:")
+    log(f" - P1: {p1_type}" + (f" (Order {tom_order_p1})" if p1_type.upper() == 'TOM' else ""))
+    log(f" - P2: {p2_type}" + (f" (Order {tom_order_p2})" if p2_type.upper() == 'TOM' else ""))
 
-    print("\nInitial Chip Distribution (Player Hands):")
+    log("\nInitial Chip Distribution (Player Hands):")
     for player_id, state in game.states.items():
         chip_str = ", ".join([f"{count}x{color}" for color, count in state.chips.items()])
-        print(f" - {player_id.upper()} (Goal:{state.goal_pos}): {chip_str}")
+        log(f" - {player_id.upper()} (Goal:{state.goal_pos}): {chip_str}")
 
     # Negotiation loop: up to MAX_NEGOTIATION_ROUNDS rounds; each round p1 then p2 propose
     for round_num in range(1, MAX_NEGOTIATION_ROUNDS + 1):
         if negotiation_ended:
             break
 
-        print(f"\n{'=' * 60}")
-        print(f"ROUND {round_num}")
-        print(f"{'=' * 60}")
+        log(f"\n{'=' * 60}")
+        log(f"ROUND {round_num}")
+        log(f"{'=' * 60}")
 
         for proposer_id in ['p1', 'p2']:
             responder_id = 'p2' if proposer_id == 'p1' else 'p1'
             proposer_agent = player_agents[proposer_id]
             responder_agent = player_agents[responder_id]
 
-            print(f"\n--- {proposer_id.upper()}'s Turn to Propose ---")
+            log(f"\n--- {proposer_id.upper()}'s Turn to Propose ---")
             proposer_give, proposer_receive = proposer_agent.propose_trade()
 
             # Normalize possible string "Pass" vs list ["Pass"]
@@ -237,14 +264,14 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
             is_pass = proposer_give == ["Pass"] or (len(proposer_give) == 1 and proposer_give[0].upper() == "PASS")
 
             if is_pass:
-                print(f"  -> {proposer_id.upper()} passes. Negotiation ends.")
+                log(f"  -> {proposer_id.upper()} passes. Negotiation ends.")
                 negotiation_ended = True
                 break
 
             # Count this as an offer made by proposer
             offers_made[proposer_id] += 1
 
-            print(
+            log(
                 f"  -> PROPOSAL: {proposer_id.upper()} offers to GIVE: {proposer_give} "
                 f"for RECEIVING: {proposer_receive} from {responder_id.upper()}"
             )
@@ -254,7 +281,7 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
             acceptance = responder_agent.evaluate_proposal(responder_proposal)
 
             if acceptance:
-                print(f"  -> {responder_id.upper()} ACCEPTS the trade!")
+                log(f"  -> {responder_id.upper()} ACCEPTS the trade!")
                 ok = game.apply_trade(
                     p1_id=proposer_id,
                     p2_id=responder_id,
@@ -262,25 +289,25 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
                     p1_receive=proposer_receive
                 )
                 if not ok:
-                    print("  -> Trade application failed due to invalid availability. Continue negotiation.")
+                    log("  -> Trade application failed due to invalid availability. Continue negotiation.")
                     continue
 
-                # Print the immediate result of the trade
-                print(f"  -> Chips after trade:")
-                print(f"     - P1 Chips: {dict(game.states['p1'].chips)}")
-                print(f"     - P2 Chips: {dict(game.states['p2'].chips)}")
+                # log the immediate result of the trade
+                log(f"  -> Chips after trade:")
+                log(f"     - P1 Chips: {dict(game.states['p1'].chips)}")
+                log(f"     - P2 Chips: {dict(game.states['p2'].chips)}")
 
                 trade_made = True
                 negotiation_ended = True
                 break
             else:
-                print(f"  -> {responder_id.upper()} REJECTS the trade.")
+                log(f"  -> {responder_id.upper()} REJECTS the trade.")
 
         if negotiation_ended:
             break
 
-    print("\n" + "=" * 60)
-    print("--- NEGOTIATION PHASE ENDED ---")
+    log("\n" + "=" * 60)
+    log("--- NEGOTIATION PHASE ENDED ---")
 
     # --- FINAL SCORING ---
     final_scores = {}
@@ -299,22 +326,163 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
     final_scores['p1'] = p1_final_score
     final_scores['p2'] = p2_final_score
 
-    print("\n--- FINAL RESULTS ---")
-    print(f"P1 Offers Made: {offers_made['p1']} (Penalty: {p1_penalty} points)")
-    print(f"P2 Offers Made: {offers_made['p2']} (Penalty: {p2_penalty} points)")
-    print(f"\nP1 Final Score: {p1_final_score} (Max Path Score: {p1_max_score})")
-    print(f"P2 Final Score: {p2_final_score} (Max Path Score: {p2_max_score})")
+    log("\n--- FINAL RESULTS ---")
+    log(f"P1 Offers Made: {offers_made['p1']} (Penalty: {p1_penalty} points)")
+    log(f"P2 Offers Made: {offers_made['p2']} (Penalty: {p2_penalty} points)")
+    log(f"\nP1 Final Score: {p1_final_score} (Max Path Score: {p1_max_score})")
+    log(f"P2 Final Score: {p2_final_score} (Max Path Score: {p2_max_score})")
 
     if p1_final_score > p2_final_score:
-        print("\nWINNER: Player 1 (p1)")
+        log("\nWINNER: Player 1 (p1)")
     elif p2_final_score > p1_final_score:
-        print("\nWINNER: Player 2 (p2)")
+        log("\nWINNER: Player 2 (p2)")
     else:
-        print("\nRESULT: TIE")
+        log("\nRESULT: TIE")
 
-    print("=" * 60)
+    log("=" * 60)
+    if not tournament:
+        plot_game_state(game)
 
-    plot_game_state(game)
+
+
+def run_tournament(args, games=1, use_seeds = False):
+    seeds = [] 
+    
+    base_log_dir = Path("tournament_logs")
+    base_log_dir.mkdir(exist_ok=True)
+
+    agent_types = [ "CLAUDE", "GEMINI"]
+    # agent_types = ["GREEDY", "LLM", "CLAUDE", "GEMINI", "TOM"]
+    tom_orders = [0, 1, 2]  # ToM orders to test
+
+    def make_agent_configs():
+        configs = []
+        for a_type in agent_types:
+            if a_type == "TOM":
+                for order in tom_orders:
+                    configs.append((a_type, order))
+            else:
+                configs.append((a_type, None))
+        return configs
+
+    agent_configs = make_agent_configs()
+
+    def allow_self_play(a_type):
+        return a_type in ["LLM", "CLAUDE", "GEMINI"]
+
+    matchups = []
+    for (a1_type, a1_order), (a2_type, a2_order) in product(agent_configs, repeat=2):
+        if a1_type == a2_type and a1_order == a2_order:
+            if allow_self_play(a1_type):
+                matchups.append(((a1_type, a1_order), (a2_type, a2_order)))
+        else:
+            matchups.append(((a1_type, a1_order), (a2_type, a2_order)))
+
+    print(f"Running tournament with {len(matchups)} matchups")
+
+    for (a1_type, a1_order), (a2_type, a2_order) in matchups:
+        match_name = (
+            f"{a1_type}{'' if a1_order is None else f'_O{a1_order}'}"
+            f"_vs_"
+            f"{a2_type}{'' if a2_order is None else f'_O{a2_order}'}"
+        )
+
+        match_dir = base_log_dir / match_name
+        match_dir.mkdir(parents=True, exist_ok=True)
+
+        print(f"\nStarting {games} games: {match_name}")
+
+        results = []
+
+        for game_num in range(1, games+1):
+            
+            if use_seeds:
+                game_seed = seeds[game_num-1]
+                set_global_seed(game_seed)
+            else:
+                game_seed = None
+            
+            if game_num <= 5:
+                p1_type, p1_order = a1_type, a1_order
+                p2_type, p2_order = a2_type, a2_order
+            else:
+                p1_type, p1_order = a2_type, a2_order
+                p2_type, p2_order = a1_type, a1_order
+
+            log_path = match_dir / f"game_{game_num}.log"
+            logger = TextLogger(log_path)
+
+            logger.log(f"Starting game {game_num} with seed {game_seed}" if game_seed is not None else f"Starting game {game_num}")
+            board_map, player_states = ColoredTrails.generate_random_game(seed=game_num)
+            game = ColoredTrails(board_map, player_states)
+
+            run_game_simulation(
+                game,
+                p1_type=p1_type,
+                p2_type=p2_type,
+                tom_order_p1=p1_order or 1,
+                tom_order_p2=p2_order or 1,
+                tournament=True,
+                logger=logger
+            )
+
+            plot_game_state(game, save=True, save_path=match_dir / f"game_{game_num}.png")
+            logger.close()
+            
+            # Write full captured log
+            log_text = log_path.read_text(encoding="utf-8")
+            p1_score = p2_score = None
+            winner = "Tie"
+            for line in log_text.splitlines():
+                if "P1 Final Score:" in line:
+                    p1_score = float(line.split()[3])
+                elif "P2 Final Score:" in line:
+                    p2_score = float(line.split()[3])
+                elif "WINNER:" in line:
+                    winner = line.split(":")[-1].strip()
+
+            results.append({
+                "game": game_num,
+                "p1_type": p1_type,
+                "p2_type": p2_type,
+                "p1_score": p1_score,
+                "p2_score": p2_score,
+                "winner": winner,
+            })
+
+            print(f"Game {game_num} finished log saved to {log_path.name}")
+
+        summary_path = match_dir / "summary.log"
+        summary_lines = [f"SUMMARY FOR MATCHUP: {match_name}\n", "=" * 60 + "\n"]
+
+        total_p1_wins = sum(1 for r in results if r["winner"] == "Player 1 (p1)")
+        total_p2_wins = sum(1 for r in results if r["winner"] == "Player 2 (p2)")
+        total_ties = len(results) - total_p1_wins - total_p2_wins
+
+        p1_scores = [r["p1_score"] for r in results if r["p1_score"] is not None]
+        p2_scores = [r["p2_score"] for r in results if r["p2_score"] is not None]
+
+        avg_p1 = statistics.mean(p1_scores) if p1_scores else 0
+        avg_p2 = statistics.mean(p2_scores) if p2_scores else 0
+
+        summary_lines.append(f"Total games: {len(results)}\n")
+        summary_lines.append(f"Player 1 wins: {total_p1_wins}\n")
+        summary_lines.append(f"Player 2 wins: {total_p2_wins}\n")
+        summary_lines.append(f"Ties: {total_ties}\n\n")
+        summary_lines.append(f"Average P1 score: {avg_p1:.2f}\n")
+        summary_lines.append(f"Average P2 score: {avg_p2:.2f}\n\n")
+        summary_lines.append("Detailed results:\n")
+
+        for r in results:
+            summary_lines.append(
+                f"  Game {r['game']:>2}: {r['p1_type']} (P1={r['p1_score']}) vs "
+                f"{r['p2_type']} (P2={r['p2_score']}) -> Winner: {r['winner']}\n"
+            )
+
+        summary_path.write_text("".join(summary_lines), encoding="utf-8")
+
+        print(f"Match completed summary written to {summary_path.name}")
+
 
 
 def parse_args():
@@ -322,6 +490,7 @@ def parse_args():
     p.add_argument("--seed", type=int, default=None, help="Deterministic seed for board/chips/goals.")
     p.add_argument("--save-scenario", type=str, default=None, help="Path to save current scenario JSON.")
     p.add_argument("--load-scenario", type=str, default=None, help="Path to load an existing scenario JSON.")
+    p.add_argument("--tournament", action="store_true", help="Run in tournament mode.")
 
     p.add_argument("--p1-agent", type=str, default="LLM",
                    choices=["LLM", "GREEDY", "CLAUDE", "GEMINI", "TOM"],
@@ -340,9 +509,7 @@ def parse_args():
     return p.parse_args()
 
 
-if __name__ == "__main__":
-    args = parse_args()
-
+def main(args):
     if args.set_global_seed and args.seed is not None:
         set_global_seed(args.seed)
 
@@ -372,6 +539,16 @@ if __name__ == "__main__":
                         p2_type=args.p2_agent,
                         tom_order_p1=args.p1_tom_order,
                         tom_order_p2=args.p2_tom_order)
+
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    if args.tournament:
+        run_tournament(args)
+    else:   
+        main(args)
+
 
     # examples
     # python main.py --p1-agent LLM --p2-agent LLM --seed 42

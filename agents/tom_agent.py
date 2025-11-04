@@ -2,6 +2,7 @@ import random
 from typing import Dict, List, Tuple, Optional
 from collections import Counter
 from game.colored_trails import ColoredTrails, GameState, COLORS, BOARD_SIZE
+from utils.text_logger import TextLogger
 
 
 class ToM0Model:
@@ -10,10 +11,11 @@ class ToM0Model:
     Learns acceptance rates for different offer types based on observed negotiations.
     """
 
-    def __init__(self, player_id: str, learning_speed: float = 0.8):
+    def __init__(self, player_id: str, learning_speed: float = 0.8, logger: TextLogger | None = None):
         self.player_id = player_id
         self.opponent_id = "p2" if player_id == "p1" else "p1"
         self.learning_speed = learning_speed
+        self.logger = logger
 
         # Statistics: [chips_given][chips_received] -> counts
         # Max 8 chips given/received (since each player starts with 4)
@@ -32,6 +34,12 @@ class ToM0Model:
                     else:
                         self.cnt_beliefs[i][j] = 8.0
 
+    def _log(self, msg: str):
+            if self.logger:
+                self.logger.log(f"[{self.player_id}] {msg}")
+            else:
+                print(f"[{self.player_id}] {msg}")
+                
     def _count_chip_difference(self, current_chips: Dict[str, int],
                                new_chips: Dict[str, int]) -> Tuple[int, int]:
         """
@@ -142,7 +150,7 @@ class ToMAgent:
     Order N: Recursive reasoning about Order N-1 opponent
     """
 
-    def __init__(self, player_id: str, game_env: ColoredTrails, order: int = 1, learning_speed: float = 0.8):
+    def __init__(self, player_id: str, game_env: ColoredTrails, order: int = 1, learning_speed: float = 0.8, logger: TextLogger | None = None ):
         self.player_id = player_id
         self.opponent_id = "p2" if player_id == "p1" else "p1"
         self.game = game_env
@@ -150,6 +158,8 @@ class ToMAgent:
         self.learning_speed = learning_speed
         self.confidence = 1.0  # Confidence in current order reasoning
         self.history: List[str] = []
+        self.logger = logger
+        
 
         if order > 0:
             # Higher order: maintain opponent model and self model
@@ -163,6 +173,12 @@ class ToMAgent:
         else:
             # Order 0: use statistical model
             self.base_model = ToM0Model(player_id, learning_speed)
+            
+    def _log(self, msg: str):
+        if self.logger:
+            self.logger.log(f"[{self.player_id}] {msg}")
+        else:
+            print(f"[{self.player_id}] {msg}")
 
     def _init_location_beliefs(self):
         """Initialize uniform beliefs about opponent location."""
@@ -341,17 +357,17 @@ class ToMAgent:
 
         # Debug output
         if self.order <= 1:  # Only for lower orders to avoid spam
-            print(f"  [DEBUG {self.player_id}] Evaluated {len(possible_offers)} offers, best_value={best_value:.2f}")
+            self._log(f"  [DEBUG {self.player_id}] Evaluated {len(possible_offers)} offers, best_value={best_value:.2f}")
             # Show top 3 offers
             offer_values.sort(reverse=True)
             for i, (val, g, r) in enumerate(offer_values[:3]):
-                print(f"    #{i + 1}: value={val:.2f}, give={g}, receive={r}")
+                self._log(f"    #{i + 1}: value={val:.2f}, give={g}, receive={r}")
 
         # Choose randomly among equally good offers
         give, receive = random.choice(best_offers) if best_offers else (["Pass"], ["Pass"])
 
         log_msg = f"{self.player_id} (ToM-{self.order}) proposed: GIVE {give} for RECEIVE {receive}"
-        print(f"  {log_msg}")
+        self._log(f"  {log_msg}")
         self.history.append(log_msg)
 
         return give, receive

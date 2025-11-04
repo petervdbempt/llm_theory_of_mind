@@ -1,14 +1,23 @@
 from typing import Dict, Tuple, List, Optional, Set
 from game.colored_trails import ColoredTrails, GameState, COLORS
+from utils.text_logger import TextLogger
+
 
 
 class GreedyPlayer:
-    def __init__(self, player_id: str, game_env: ColoredTrails):
+    def __init__(self, player_id: str, game_env: ColoredTrails, logger: TextLogger | None = None):
         self.player_id = player_id
         self.opponent_id = 'p2' if player_id == 'p1' else 'p1'
         self.game = game_env
         self.COLORS = COLORS
         self.proposed_trades: Set[Tuple[str, str]] = set()  # Track proposed trades to prevent repetition
+        self.logger = logger
+        
+    def _log(self, msg: str):
+        if self.logger:
+            self.logger.log(f"[{self.player_id}] {msg}")
+        else:
+            print(f"[{self.player_id}] {msg}")
 
     def calculate_utility(self, new_chips: Dict[str, int]) -> int:
         temp_state = GameState(
@@ -30,7 +39,7 @@ class GreedyPlayer:
         opponent_chips = self.game.states[self.opponent_id].chips  # Only used for debugging
 
         if not current_chips:
-            print(f"  [{self.player_id}] No chips available to trade")
+            self._log(f"  [{self.player_id}] No chips available to trade")
             return "Pass", "Pass"
 
         current_utility = self.calculate_utility(dict(current_chips))
@@ -71,17 +80,17 @@ class GreedyPlayer:
                     best_proposal = (give_color, receive_color)
 
         if evaluated_trades:
-            print(f"\n  [{self.player_id}] Evaluated {len(evaluated_trades)} possible trades:")
-            print(f"  [{self.player_id}] Current utility: {current_utility}")
+            self._log(f"\n  [{self.player_id}] Evaluated {len(evaluated_trades)} possible trades:")
+            self._log(f"  [{self.player_id}] Current utility: {current_utility}")
             sorted_trades = sorted(evaluated_trades, key=lambda x: x[2], reverse=True)
             for give, recv, gain in sorted_trades:
-                print(f"    - Give {give} for {recv}: gain = {gain}")
+                self._log(f"    - Give {give} for {recv}: gain = {gain}")
 
         if best_proposal != ("Pass", "Pass"):
             self.proposed_trades.add(best_proposal)
-            print(f"  [{self.player_id}] Selected trade: Give {best_proposal[0]} for {best_proposal[1]} (gain: {best_gain})")
+            self._log(f"  [{self.player_id}] Selected trade: Give {best_proposal[0]} for {best_proposal[1]} (gain: {best_gain})")
         else:
-            print(f"  [{self.player_id}] No beneficial trades found - passing")
+            self._log(f"  [{self.player_id}] No beneficial trades found - passing")
 
         return best_proposal
 
@@ -94,7 +103,7 @@ class GreedyPlayer:
         current_chips = self.game.states[self.player_id].chips
 
         if current_chips.get(opp_receive_color, 0) < 1:
-            print(f"  [{self.player_id}] Cannot accept - missing {opp_receive_color}")
+            self._log(f"  [{self.player_id}] Cannot accept - missing {opp_receive_color}")
             return False
 
         hypo_chips = current_chips.copy()
@@ -109,7 +118,7 @@ class GreedyPlayer:
         current_utility = self.calculate_utility(dict(current_chips))
 
         gain = new_utility - current_utility
-        print(f"  [{self.player_id}] Evaluating: receive {opp_give_color}, give {opp_receive_color}")
-        print(f"    Current utility: {current_utility}, New utility: {new_utility}, Gain: {gain}")
+        self._log(f"  [{self.player_id}] Evaluating: receive {opp_give_color}, give {opp_receive_color}")
+        self._log(f"    Current utility: {current_utility}, New utility: {new_utility}, Gain: {gain}")
 
         return new_utility > current_utility

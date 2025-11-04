@@ -467,9 +467,9 @@ From (2,2) → (3,2) → (3,3) → (4,3)
 Same issue.
 
 The best achievable outcome is to trade for 1 BL, which would let me move 2 steps closer instead of just 1.
-
+*#*#*#*
 My opponent rejected trading GR for OR, so they don't want OR. They previously were proposed YE for BL (by me). Let me try offering something they might want.
-
+*#*#*#*
 I should offer YE for BL since I have 2 YE (excess) and need BL.
 
 {"give": ["YE"], "receive": ["BL"]}
@@ -648,6 +648,7 @@ The opponent has 1 OR chip which I need. Looking at the negotiation history:
 - I previously proposed GR for OR (which is still pending/was my last proposal)
 - P1 tried to trade YE for BL twice, which I rejected
 
+*#*#*
 Since I need OR and the opponent has it, I should offer something they might want. Given they tried to get BL from me twice, they likely need BL. Let me offer BL for OR since:
 1. I don't need BL for my path
 2. They clearly want BL

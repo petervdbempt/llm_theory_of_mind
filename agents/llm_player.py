@@ -5,7 +5,7 @@ from collections import Counter
 
 from game.colored_trails import ColoredTrails, GameState, COLORS
 from huggingface_hub import InferenceClient
-
+from utils.text_logger import TextLogger
 
 def read_api_key(filepath="API_token.txt"):
     with open(filepath, "r") as f:
@@ -22,7 +22,7 @@ class LLMPlayer:
     The prompt allows any chip redistribution (e.g., 1-for-1, 3-for-1, 1-for-2, etc.)
     """
 
-    def __init__(self, player_id: str, game_env: ColoredTrails):
+    def __init__(self, player_id: str, game_env: ColoredTrails, logger: TextLogger | None = None):
         self.player_id = player_id
         self.opponent_id = "p2" if player_id == "p1" else "p1"
         self.game = game_env
@@ -30,6 +30,13 @@ class LLMPlayer:
         self.proposed_trades: Set[Tuple[Tuple[str, ...], Tuple[str, ...]]] = set()
         self.history: List[str] = []
         self.client = InferenceClient(model="meta-llama/Llama-3.1-8B-Instruct", token=api_key)
+        self.logger = logger
+        
+    def _log(self, msg: str):
+        if self.logger:
+            self.logger.log(f"[{self.player_id}] {msg}")
+        else:
+            print(f"[{self.player_id}] {msg}")
 
     def calculate_utility(self, new_chips: Dict[str, int]) -> int:
         temp_state = GameState(goal_pos=self.game.states[self.player_id].goal_pos,
@@ -49,7 +56,7 @@ class LLMPlayer:
                 _prompt,
                 stop=stop or ["\n\n"]
             )
-            print(f"Raw response: {response}")
+            self._log(f"stripped response: {response.choices[0].message.content.strip()}")
             return response.choices[0].message.content.strip()
         except Exception as e:
             if "not supported" in str(e).lower() and "conversational" in str(e).lower():
@@ -57,9 +64,9 @@ class LLMPlayer:
                     conv = self.client.conversational(prompt)
                     return conv.generated_text.strip()
                 except Exception as inner_e:
-                    print(f"[{self.player_id}] Conversational fallback failed ({inner_e}). Defaulting to 'Pass'.")
+                    self._log(f"[{self.player_id}] Conversational fallback failed ({inner_e}). Defaulting to 'Pass'.")
                     return "Pass"
-            print(f"[{self.player_id}] LLM call failed ({e}). Defaulting to 'Pass'.")
+            self._log(f"[{self.player_id}] LLM call failed ({e}). Defaulting to 'Pass'.")
             return "Pass"
 
     def _parse_trade_response(self, text: str) -> Tuple[List[str], List[str]]:
@@ -100,7 +107,7 @@ class LLMPlayer:
         except Exception:
             pass
 
-        print("WRONG FORMAT - Expected valid JSON only")
+        self._log("WRONG FORMAT - Expected valid JSON only")
         return ["Pass"], ["Pass"]
 
     def _format_board_state(self) -> str:
@@ -117,7 +124,7 @@ class LLMPlayer:
     def propose_trade(self) -> Tuple[List[str], List[str]]:
         my_chips = self.game.states[self.player_id].chips
         if not my_chips:
-            print(f"  [{self.player_id}] No chips to trade.")
+            self._log(f"  [{self.player_id}] No chips to trade.")
             return ["Pass"], ["Pass"]
 
         goal_pos = self.game.states[self.player_id].goal_pos
@@ -156,7 +163,7 @@ WHAT TO DO:
 - {{"give": ["PASS"], "receive": ["PASS"]}}
 """
 
-        print(
+        self._log(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
         llm_output = self.query_llm(prompt, stop=["\n\n"])
@@ -167,7 +174,7 @@ WHAT TO DO:
         self.proposed_trades.add(trade_key)
 
         log_msg = f"{self.player_id} proposed trade: GIVE {give_list} for RECEIVE {receive_list}"
-        print(f"  [{self.player_id}] {log_msg}")
+        self._log(f"  [{self.player_id}] {log_msg}")
         self.history.append(log_msg)
         return give_list, receive_list
 
@@ -183,7 +190,7 @@ WHAT TO DO:
         opp_receive_counter = Counter(opp_receive)
         for chip, count in opp_receive_counter.items():
             if my_state.chips.get(chip, 0) < count:
-                print(f"  [{self.player_id}] Cannot accept - missing {count}x {chip}")
+                self._log(f"  [{self.player_id}] Cannot accept - missing {count}x {chip}")
                 self.history.append(
                     f"{self.opponent_id} proposed {opp_give} for {opp_receive}. {self.player_id} REJECT")
                 return False
@@ -244,7 +251,7 @@ WHAT TO DO:
 - {{"action": "REJECT"}}
 """
 
-        print(
+        self._log(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
         llm_output = self.query_llm(prompt, stop=["\n\n"]).strip()
@@ -258,7 +265,7 @@ WHAT TO DO:
             else:
                 action_upper = str(action).upper()
         except Exception:
-            print("WRONG FORMAT - Expected valid JSON only")
+            self._log("WRONG FORMAT - Expected valid JSON only")
             if "ACCEPT" in out_upper and "REJECT" not in out_upper:
                 action_upper = "ACCEPT"
             elif "REJECT" in out_upper and "ACCEPT" not in out_upper:
@@ -269,10 +276,10 @@ WHAT TO DO:
         accept = action_upper == "ACCEPT"
 
         if accept:
-            print(f"  [{self.player_id}] LLM decision: ACCEPT")
+            self._log(f"  [{self.player_id}] LLM decision: ACCEPT")
             self.history.append(f"{self.player_id} ACCEPTED offer ({opp_give} for {opp_receive}).")
         else:
-            print(f"  [{self.player_id}] LLM decision: REJECT")
+            self._log(f"  [{self.player_id}] LLM decision: REJECT")
             self.history.append(f"{self.player_id} REJECTED offer ({opp_give} for {opp_receive}).")
 
         return accept

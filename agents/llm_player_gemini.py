@@ -7,6 +7,7 @@ from collections import Counter
 
 from google import genai
 from google.genai import types
+from utils.text_logger import TextLogger
 
 from game.colored_trails import ColoredTrails, GameState, COLORS
 
@@ -22,13 +23,14 @@ api_key = read_api_key()
 
 
 class LLMPlayer:
-    def __init__(self, player_id: str, game_env: ColoredTrails):
+    def __init__(self, player_id: str, game_env: ColoredTrails, logger: TextLogger | None = None):
         self.player_id = player_id
         self.opponent_id = "p2" if player_id == "p1" else "p1"
         self.game = game_env
         self.COLORS = COLORS
         self.proposed_trades: Set[Tuple[Tuple[str, ...], Tuple[str, ...]]] = set()
         self.history: List[str] = []
+        self.logger = logger
 
         try:
             self.client = genai.Client(api_key=api_key)
@@ -61,6 +63,12 @@ class LLMPlayer:
             },
             required=["action"],
         )
+        
+    def _log(self, msg: str):
+        if self.logger:
+            self.logger.log(f"[{self.player_id}] {msg}")
+        else:
+            print(f"[{self.player_id}] {msg}")
 
     def _gen_json(self, prompt: str, schema: types.Schema) -> dict | None:
         # This function is used for the JSON mode with the made schemas for Gemini
@@ -77,7 +85,7 @@ class LLMPlayer:
             )
             return json.loads(resp.text)
         except Exception as e:
-            print(f"[{self.player_id}] JSON call failed: {e}")
+            self._log(f"[{self.player_id}] JSON call failed: {e}")
             return None
 
     def calculate_utility(self, new_chips: Dict[str, int]) -> int:
@@ -105,12 +113,12 @@ class LLMPlayer:
                 config=config,
             )
 
-            print(f"Raw response: {response}")
+            self._log(f"stripped response: {response.text.strip()}")
             return response.text.strip()
 
         except Exception as e:
             # If something goes wrong we will default to pass action
-            print(f"[{self.player_id}] LLM call failed ({e}). Defaulting to 'Pass'.")
+            self._log(f"[{self.player_id}] LLM call failed ({e}). Defaulting to 'Pass'.")
             return "Pass"
 
     def _parse_trade_response(self, text: str) -> Tuple[List[str], List[str]]:
@@ -142,8 +150,8 @@ class LLMPlayer:
             return give_list, receive_list
 
         except Exception as e:
-            print(f"[WARN] _parse_trade_response failed to parse JSON: {e}")
-            print(f"Raw model output:\n{text_raw}")
+            self._log(f"[WARN] _parse_trade_response failed to parse JSON: {e}")
+            self._log(f"Raw model output:\n{text_raw}")
             return ["Pass"], ["Pass"]
 
     def _format_board_state(self) -> str:
@@ -159,7 +167,7 @@ class LLMPlayer:
     def propose_trade(self) -> Tuple[List[str], List[str]]:
         my_chips = self.game.states[self.player_id].chips
         if not my_chips:
-            print(f"  [{self.player_id}] No chips to trade.")
+            self._log(f"  [{self.player_id}] No chips to trade.")
             return ["Pass"], ["Pass"]
 
         goal_pos = self.game.states[self.player_id].goal_pos
@@ -198,7 +206,7 @@ WHAT TO DO:
 - {{"give": "PASS", "receive": "PASS"}}
 """
 
-        print(
+        self._log(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
         data = self._gen_json(prompt, self.trade_schema)
@@ -236,7 +244,7 @@ WHAT TO DO:
         trade_key = (tuple(sorted(give_out)), tuple(sorted(receive_out)))
         self.proposed_trades.add(trade_key)
         log_msg = f"{self.player_id} proposed trade: GIVE {give_out} for RECEIVE {receive_out}"
-        print(f"  [{self.player_id}] {log_msg}")
+        self._log(f"  [{self.player_id}] {log_msg}")
         self.history.append(log_msg)
         return give_out, receive_out
 
@@ -253,7 +261,7 @@ WHAT TO DO:
         opp_receive_counter = Counter(opp_receive)
         for chip, count in opp_receive_counter.items():
             if my_state.chips.get(chip, 0) < count:
-                print(f"  [{self.player_id}] Cannot accept - missing {count}x {chip}")
+                self._log(f"  [{self.player_id}] Cannot accept - missing {count}x {chip}")
                 self.history.append(
                     f"{self.opponent_id} proposed {opp_give} for {opp_receive}. {self.player_id} REJECT")
                 return False
@@ -314,7 +322,7 @@ WHAT TO DO:
 - {{"action": "REJECT"}}
 """
 
-        print(
+        self._log(
             f"\n========== LLM PROMPT ({self.player_id}) ==========\n{prompt}\n==============================================\n")
 
         data = self._gen_json(prompt, self.decision_schema)
@@ -330,9 +338,9 @@ WHAT TO DO:
 
         accept = action_upper == "ACCEPT"
         if accept:
-            print(f"  [{self.player_id}] LLM decision: ACCEPT")
+            self._log(f"  [{self.player_id}] LLM decision: ACCEPT")
             self.history.append(f"{self.player_id} ACCEPTED offer ({opp_give} for {opp_receive}).")
         else:
-            print(f"  [{self.player_id}] LLM decision: REJECT")
+            self._log(f"  [{self.player_id}] LLM decision: REJECT")
             self.history.append(f"{self.player_id} REJECTED offer ({opp_give} for {opp_receive}).")
         return accept
