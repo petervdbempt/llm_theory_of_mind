@@ -13,7 +13,10 @@ from game.colored_trails import (
     START_POS,
     COLORS, load_scenario_json, save_scenario_json
 )
-from agents.llm_player_gemini import LLMPlayer
+from agents.llm_player import LLMPlayer
+from agents.llm_player_claude import ClaudePlayer
+from agents.llm_player_gemini import LLMPlayer as GeminiPlayer
+
 from agents.tom_agent import ToMAgent  # New import
 
 MAX_NEGOTIATION_ROUNDS = 5
@@ -24,6 +27,17 @@ HEX_COLORS = ['#DC143C', '#1E90FF', '#FFD700', '#32CD32', '#FF8C00']
 COLOR_MAP = mcolors.ListedColormap(HEX_COLORS)
 BOUNDS = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
+
+def llm_player_builder(player_id, game_env, player_type):
+    if player_type.upper() == 'LLM':
+        return LLMPlayer(player_id, game_env)
+    elif player_type.upper() == 'CLAUDE':
+        return ClaudePlayer(player_id, game_env)
+    elif player_type.upper() == 'GEMINI':
+        return GeminiPlayer(player_id, game_env)
+    else:
+        raise ValueError(f"Unsupported player type: {player_type}")
+    
 
 
 def set_global_seed(seed: int):
@@ -317,7 +331,7 @@ def parse_args():
     p.add_argument("--load-scenario", type=str, default=None, help="Path to load an existing scenario JSON.")
 
     p.add_argument("--p1-agent", type=str, default="LLM",
-                   choices=["LLM", "GREEDY", "TOM"],
+                   choices=["LLM", "GREEDY", "CLAUDE", "GEMINI", "TOM"],
                    help="Agent type for Player 1")
     p.add_argument("--p2-agent", type=str, default="LLM",
                    choices=["LLM", "GREEDY", "TOM"],
