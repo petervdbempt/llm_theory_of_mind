@@ -28,17 +28,6 @@ COLOR_MAP = mcolors.ListedColormap(HEX_COLORS)
 BOUNDS = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
 
-def llm_player_builder(player_id, game_env, player_type):
-    if player_type.upper() == 'LLM':
-        return LLMPlayer(player_id, game_env)
-    elif player_type.upper() == 'CLAUDE':
-        return ClaudePlayer(player_id, game_env)
-    elif player_type.upper() == 'GEMINI':
-        return GeminiPlayer(player_id, game_env)
-    else:
-        raise ValueError(f"Unsupported player type: {player_type}")
-    
-
 
 def set_global_seed(seed: int):
     # set a seed to increase reproducability
@@ -193,6 +182,10 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
             return GreedyPlayer(player_id=player_id, game_env=game)
         elif agent_type == 'TOM':
             return ToMAgent(player_id=player_id, game_env=game, order=tom_order)
+        elif agent_type == 'CLAUDE':
+            return ClaudePlayer(player_id=player_id, game_env=game)
+        elif agent_type == 'GEMINI':
+            return GeminiPlayer(player_id=player_id, game_env=game) 
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
