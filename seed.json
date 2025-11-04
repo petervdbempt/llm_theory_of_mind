@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "board_size": 5,
+    "colors": [
+      "RE",
+      "BL",
+      "YE",
+      "GR",
+      "OR"
+    ],
+    "start_pos": [
+      2,
+      2
+    ],
+    "seed": 14
+  },
+  "board": [
+    [
+      "RE",
+      "OR",
+      "OR",
+      "BL",
+      "YE"
+    ],
+    [
+      "YE",
+      "YE",
+      "RE",
+      "GR",
+      "YE"
+    ],
+    [
+      "GR",
+      "GR",
+      "GR",
+      "RE",
+      "YE"
+    ],
+    [
+      "BL",
+      "YE",
+      "YE",
+      "YE",
+      "YE"
+    ],
+    [
+      "OR",
+      "BL",
+      "BL",
+      "OR",
+      "YE"
+    ]
+  ],
+  "players": {
+    "p1": {
+      "goal": [
+        0,
+        3
+      ],
+      "chips": {
+        "RE": 2,
+        "OR": 1,
+        "YE": 1
+      }
+    },
+    "p2": {
+      "goal": [
+        0,
+        0
+      ],
+      "chips": {
+        "RE": 2,
+        "YE": 1,
+        "BL": 1
+      }
+    }
+  }
+}

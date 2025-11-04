@@ -1,3 +1,4 @@
+import json
 import random
 from collections import Counter, deque
 from typing import List, Tuple, Dict, Set, Optional
@@ -203,11 +204,13 @@ class ColoredTrails:
         return True
 
     @staticmethod
-    def generate_random_game() -> Tuple[List[List[str]], Dict[str, GameState]]:
+    def generate_random_game(seed: Optional[int] = None) -> Tuple[List[List[str]], Dict[str, GameState]]:
         """Generates a new, random game instance."""
 
+        rng = random.Random(seed)
+
         # 1. Generate Board (5x5, random colors)
-        board_map = [[random.choice(COLORS) for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+        board_map = [[rng.choice(COLORS) for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
         # 2. Generate Goal Locations (at least 3 steps away from START_POS (2,2))
         possible_goals = []
@@ -219,11 +222,11 @@ class ColoredTrails:
         if len(possible_goals) < 2:
             possible_goals = [(0, 0), (4, 4)]
 
-        goal_p1, goal_p2 = random.sample(possible_goals, 2)
+        goal_p1, goal_p2 = rng.sample(possible_goals, 2)
 
         # 3. Generate Initial Chips (4 random chips each)
-        chips_p1 = Counter([random.choice(COLORS) for _ in range(4)])
-        chips_p2 = Counter([random.choice(COLORS) for _ in range(4)])
+        chips_p1 = Counter([rng.choice(COLORS) for _ in range(4)])
+        chips_p2 = Counter([rng.choice(COLORS) for _ in range(4)])
 
         # 4. Create Player States
         player_states = {
@@ -232,3 +235,37 @@ class ColoredTrails:
         }
 
         return board_map, player_states
+
+
+
+def scenario_to_dict(board_map: List[List[str]], states: Dict[str, GameState], seed: Optional[int]) -> dict:
+    """Serialize a full scenario (board, goals, chips, optional seed) to a Python dict."""
+    return {
+        "meta": {"board_size": BOARD_SIZE, "colors": COLORS, "start_pos": START_POS, "seed": seed},
+        "board": board_map,
+        "players": {
+            "p1": {"goal": states['p1'].goal_pos, "chips": dict(states['p1'].chips)},
+            "p2": {"goal": states['p2'].goal_pos, "chips": dict(states['p2'].chips)},
+        },
+    }
+
+def save_scenario_json(path: str, board_map: List[List[str]], states: Dict[str, GameState],
+                       seed: Optional[int] = None):
+    """Write scenario JSON to disk."""
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(scenario_to_dict(board_map, states, seed), f, indent=2)
+
+
+def load_scenario_json(path: str) -> Tuple[List[List[str]], Dict[str, GameState]]:
+    """Load a scenario JSON and reconstruct board & player states."""
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    board_map = data["board"]
+    p1 = data["players"]["p1"]
+    p2 = data["players"]["p2"]
+    states = {
+        "p1": GameState(tuple(p1["goal"]), p1["chips"]),
+        "p2": GameState(tuple(p2["goal"]), p2["chips"]),
+    }
+    return board_map, states

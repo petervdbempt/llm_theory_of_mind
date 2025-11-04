@@ -1,3 +1,5 @@
+import argparse
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patheffects as pe
@@ -9,10 +11,13 @@ from game.colored_trails import (
     PENALTY_PER_ROUND,
     BOARD_SIZE,
     START_POS,
-    COLORS
+    COLORS, load_scenario_json, save_scenario_json
 )
-# Assuming LLMPlayer is correctly importing and configured
 from agents.llm_player import LLMPlayer
+from agents.llm_player_claude import ClaudePlayer
+from agents.llm_player_gemini import LLMPlayer as GeminiPlayer
+
+from agents.tom_agent import ToMAgent  # New import
 
 MAX_NEGOTIATION_ROUNDS = 5
 
@@ -23,9 +28,47 @@ COLOR_MAP = mcolors.ListedColormap(HEX_COLORS)
 BOUNDS = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 NORM = mcolors.BoundaryNorm(BOUNDS, COLOR_MAP.N)
 
+def llm_player_builder(player_id, game_env, player_type):
+    if player_type.upper() == 'LLM':
+        return LLMPlayer(player_id, game_env)
+    elif player_type.upper() == 'CLAUDE':
+        return ClaudePlayer(player_id, game_env)
+    elif player_type.upper() == 'GEMINI':
+        return GeminiPlayer(player_id, game_env)
+    else:
+        raise ValueError(f"Unsupported player type: {player_type}")
+    
+
+
+def set_global_seed(seed: int):
+    # set a seed to increase reproducability
+    import random
+    random.seed(seed)
+    np.random.seed(seed)
+
+
+def print_quick_metrics(game: ColoredTrails):
+    # Function just to quickly see whether seed is promising and we should try it
+    p1_score, p1_steps, _ = game.get_max_score_and_path('p1')
+    p2_score, p2_steps, _ = game.get_max_score_and_path('p2')
+    g1 = game.states['p1'].goal_pos
+    g2 = game.states['p2'].goal_pos
+
+    hist = {c: 0 for c in COLORS}
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+            hist[game.board[r][c]] += 1
+
+    print("\n--- QUICK METRICS ---")
+    print(f" P1: steps_to_goal={p1_steps}, path_score={p1_score}")
+    print(f" P2: steps_to_goal={p2_steps}, path_score={p2_score}")
+    print(" Board color counts:", hist)
+    print(" P1 chips:", dict(game.states['p1'].chips))
+    print(" P2 chips:", dict(game.states['p2'].chips))
+
 
 def plot_game_state(game: ColoredTrails):
-    """Generates and displays a Matplotlib visualization of the game board and state."""
+    # Generates and displays a Matplotlib visualization of the game board and state.
 
     board_matrix = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
     for r in range(BOARD_SIZE):
@@ -66,14 +109,22 @@ def plot_game_state(game: ColoredTrails):
     plt.show()
 
 
-def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
+def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str = 'LLM',
+                        tom_order_p1: int = 1, tom_order_p2: int = 1):
     """
     Runs the full simulation of the negotiation phase followed by scoring.
-    Supports multi-chip trades (any redistribution).
-    player_type: 'LLM' (uses LLMPlayer) or 'GREEDY' (simple heuristic agent).
-    """
+    Supports multiple agent types:
+    - 'LLM': Uses LLMPlayer (Gemini-based)
+    - 'GREEDY': Simple greedy heuristic
+    - 'TOM': Theory of Mind agent with specified order
 
-    print("--- Starting negotiation phase. ---")
+    Args:
+        game: The ColoredTrails game instance
+        p1_type: Agent type for player 1 ('LLM', 'GREEDY', 'TOM')
+        p2_type: Agent type for player 2 ('LLM', 'GREEDY', 'TOM')
+        tom_order_p1: ToM order for p1 if p1_type='TOM' (0, 1, 2, ...)
+        tom_order_p2: ToM order for p2 if p2_type='TOM' (0, 1, 2, ...)
+    """
 
     # Small local GreedyPlayer implementation for testing / non-LLM runs
     class GreedyPlayer:
@@ -133,25 +184,34 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
                 f"{self.player_id} {'ACCEPTED' if accept else 'REJECTED'} offer ({opp_give} for {opp_receive})")
             return accept
 
-    # Build agents according to the requested type
-    if player_type.upper() == 'LLM':
-        player_agents = {
-            'p1': LLMPlayer(player_id='p1', game_env=game),
-            'p2': LLMPlayer(player_id='p2', game_env=game)
-        }
-    else:
-        player_agents = {
-            'p1': GreedyPlayer(player_id='p1', game_env=game),
-            'p2': GreedyPlayer(player_id='p2', game_env=game)
-        }
+    # Build agents according to the requested types
+    def create_agent(player_id: str, agent_type: str, tom_order: int):
+        agent_type = agent_type.upper()
+        if agent_type == 'LLM':
+            return LLMPlayer(player_id=player_id, game_env=game)
+        elif agent_type == 'GREEDY':
+            return GreedyPlayer(player_id=player_id, game_env=game)
+        elif agent_type == 'TOM':
+            return ToMAgent(player_id=player_id, game_env=game, order=tom_order)
+        else:
+            raise ValueError(f"Unknown agent type: {agent_type}")
+
+    player_agents = {
+        'p1': create_agent('p1', p1_type, tom_order_p1),
+        'p2': create_agent('p2', p2_type, tom_order_p2)
+    }
 
     offers_made = {'p1': 0, 'p2': 0}
     trade_made = False
-    negotiation_ended = False  # New flag to control the outer loop
+    negotiation_ended = False
 
     print("\n" + "=" * 60)
     print("      COLORED TRAILS: STARTING NEGOTIATION LOG")
     print("=" * 60)
+    print(f"\nAgent Configuration:")
+    print(f" - P1: {p1_type}" + (f" (Order {tom_order_p1})" if p1_type.upper() == 'TOM' else ""))
+    print(f" - P2: {p2_type}" + (f" (Order {tom_order_p2})" if p2_type.upper() == 'TOM' else ""))
+
     print("\nInitial Chip Distribution (Player Hands):")
     for player_id, state in game.states.items():
         chip_str = ", ".join([f"{count}x{color}" for color, count in state.chips.items()])
@@ -160,7 +220,7 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
     # Negotiation loop: up to MAX_NEGOTIATION_ROUNDS rounds; each round p1 then p2 propose
     for round_num in range(1, MAX_NEGOTIATION_ROUNDS + 1):
         if negotiation_ended:
-            break  # Exit the negotiation if already ended by a pass or accepted trade
+            break
 
         print(f"\n{'=' * 60}")
         print(f"ROUND {round_num}")
@@ -183,11 +243,10 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
             # Check for Pass
             is_pass = proposer_give == ["Pass"] or (len(proposer_give) == 1 and proposer_give[0].upper() == "PASS")
 
-            # 👇 FIX IMPLEMENTATION: If proposer passes, negotiation ends immediately
             if is_pass:
                 print(f"  -> {proposer_id.upper()} passes. Negotiation ends.")
-                negotiation_ended = True  # Set flag to terminate outer loop
-                break  # Exit the inner loop (proposers)
+                negotiation_ended = True
+                break
 
             # Count this as an offer made by proposer
             offers_made[proposer_id] += 1
@@ -198,8 +257,6 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
             )
 
             # Responder evaluates the offer
-            # Note semantics: proposer_give = chips proposer gives (so responder receives these),
-            # proposer_receive = chips proposer wants (so responder must give these)
             responder_proposal = (proposer_give, proposer_receive)
             acceptance = responder_agent.evaluate_proposal(responder_proposal)
 
@@ -213,7 +270,6 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
                 )
                 if not ok:
                     print("  -> Trade application failed due to invalid availability. Continue negotiation.")
-                    # if trade failed due to validation, treat as rejection for negotiation continuation
                     continue
 
                 # Print the immediate result of the trade
@@ -222,13 +278,11 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
                 print(f"     - P2 Chips: {dict(game.states['p2'].chips)}")
 
                 trade_made = True
-                negotiation_ended = True  # Set flag to terminate outer loop
-                break  # Exit the inner loop (proposers)
+                negotiation_ended = True
+                break
             else:
                 print(f"  -> {responder_id.upper()} REJECTS the trade.")
 
-        # end for proposer loop
-        # If a trade was made or a pass ended negotiation, stop negotiating
         if negotiation_ended:
             break
 
@@ -267,17 +321,65 @@ def run_game_simulation(game: ColoredTrails, player_type: str = 'LLM'):
 
     print("=" * 60)
 
-    # --- VISUALIZE FINAL STATE ---
     plot_game_state(game)
 
 
+def parse_args():
+    p = argparse.ArgumentParser(description="Colored Trails runner with multiple agent types.")
+    p.add_argument("--seed", type=int, default=None, help="Deterministic seed for board/chips/goals.")
+    p.add_argument("--save-scenario", type=str, default=None, help="Path to save current scenario JSON.")
+    p.add_argument("--load-scenario", type=str, default=None, help="Path to load an existing scenario JSON.")
+
+    p.add_argument("--p1-agent", type=str, default="LLM",
+                   choices=["LLM", "GREEDY", "CLAUDE", "GEMINI", "TOM"],
+                   help="Agent type for Player 1")
+    p.add_argument("--p2-agent", type=str, default="LLM",
+                   choices=["LLM", "GREEDY", "TOM"],
+                   help="Agent type for Player 2")
+
+    p.add_argument("--p1-tom-order", type=int, default=1,
+                   help="Theory of Mind order for P1 (if --p1-agent=TOM). 0=basic, 1+=recursive")
+    p.add_argument("--p2-tom-order", type=int, default=1,
+                   help="Theory of Mind order for P2 (if --p2-agent=TOM). 0=basic, 1+=recursive")
+
+    p.add_argument("--set-global-seed", action="store_true",
+                   help="Also set global seeds (numpy, python random) for full determinism.")
+    return p.parse_args()
+
+
 if __name__ == "__main__":
-    # Set up the game
-    board_map, player_states = ColoredTrails.generate_random_game()
+    args = parse_args()
+
+    if args.set_global_seed and args.seed is not None:
+        set_global_seed(args.seed)
+
+    # Build or load game based on a seed
+    if args.load_scenario:
+        board_map, player_states = load_scenario_json(args.load_scenario)
+        seed_used = None
+        print(f"Loaded scenario from {args.load_scenario}")
+    else:
+        board_map, player_states = ColoredTrails.generate_random_game(seed=args.seed)
+        seed_used = args.seed
+        if seed_used is not None:
+            print(f"Generated new scenario with seed={seed_used}")
+
     game = ColoredTrails(board_map, player_states)
 
-    # Set the desired player type here. Options: 'GREEDY' or 'LLM'
-    AGENT_TO_USE = 'LLM'
+    # for seeing if seed is promising enough to waste time on
+    print_quick_metrics(game)
 
-    # Run the simulation and plot the result
-    run_game_simulation(game, player_type=AGENT_TO_USE)
+    # save the seed for quick load
+    if args.save_scenario:
+        save_scenario_json(args.save_scenario, board_map, player_states, seed=seed_used)
+        print(f"Scenario saved to {args.save_scenario}")
+
+    run_game_simulation(game,
+                        p1_type=args.p1_agent,
+                        p2_type=args.p2_agent,
+                        tom_order_p1=args.p1_tom_order,
+                        tom_order_p2=args.p2_tom_order)
+
+    # examples
+    # python main.py --p1-agent LLM --p2-agent LLM --seed 42
+    # python main.py --p1-agent TOM --p2-agent TOM --p1-tom-order 1 --p2-tom-order 1 --seed 42
