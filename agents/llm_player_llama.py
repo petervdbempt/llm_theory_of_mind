@@ -7,7 +7,7 @@ from game.colored_trails import ColoredTrails, GameState, COLORS
 from huggingface_hub import InferenceClient
 from utils.text_logger import TextLogger
 
-def read_api_key(filepath="API_token.txt"):
+def read_api_key(filepath="API_token_llama.txt"):
     with open(filepath, "r") as f:
         return f.read().strip()
 

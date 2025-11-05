@@ -1,6 +1,6 @@
 In this repository you will find the code and documentation of the comparison between LLMs and Theory of mind agents. 
 The goal of this comparison is to see whether big LLMs that perform state-of-the-art on all sorts of benchmarks exhibit reasoning behaviour about others mental states. 
-We use the game of Colored Trails to test this.  
+We use the game of Colored Trails to test this.
 
 The repository is split in the following way
 
@@ -19,6 +19,11 @@ The repository is split in the following way
 - seed.json  -- here you can find a seed that allows for interesting behaviour of the agents
 
 
+To run the code of the repository, you can clone it using git clone https://github.com/petervdbempt/llm_theory_of_mind.git 
+CD into the llm_theory_of_mind folder and run pip install -r requirements.txt
+Create an API_token_<llama/gemini/claude>.txt with an API key for the corresponding 
+LLM.
+
 In order to run a game you can use this command and specify the options as wished:
 python main.py --p1-agent <LLAMA/GREEDY/CLAUDE/GEMINI/TOM> --p2-agent <LLAMA/GREEDY/CLAUDE/GEMINI/TOM> --set-global-seed  --load-scenario .\seed.json
 
@@ -30,6 +35,7 @@ If chosen to use any player as TOM agent, use: --p<1/2>-tom-order <0/1/2> to spe
 You can also add --tournament to run the tournament mode such that the agents will play more games in a row. 
 
 ![seed14gamestateplot.png](seed14gamestateplot.png)
+
 Here you can see the board of seed14
 
 

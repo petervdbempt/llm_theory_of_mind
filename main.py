@@ -22,7 +22,7 @@ from game.colored_trails import (
     START_POS,
     COLORS, load_scenario_json, save_scenario_json
 )
-from agents.llm_player import LlamaMPlayer
+from agents.llm_player_llama import LlamaMPlayer
 from agents.llm_player_claude import ClaudePlayer
 from agents.llm_player_gemini import LLMPlayer as GeminiPlayer
 
