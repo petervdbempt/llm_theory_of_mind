@@ -3,19 +3,20 @@ The goal of this comparison is to see whether big LLMs that perform state-of-the
 We use the game of Colored Trails to test this.  
 
 The repository is split in the following way
--- agents
+
+- agents
   -- here you can find the different kinds of agents. We have 4 kind of agents, a greedy agent, a TOM agent with different orders of TOM and 3 LLM agents: Llama, Claude and Gemini.
--- game
+- game
   -- here you can find the game logic which we use to visualize and evaluate games of Colored Trails. 
--- scripts_harmen
+- scripts_harmen
   -- here you can find the original scripts that were taken from: http://www.harmendeweerd.nl/alternating-offers-negotiation/. These scripts are an implementation of paper 1*. 
--- rewritten_scripts_harmen
+- rewritten_scripts_harmen
   -- here you can find the scripts rewritten to work with our Python implementation. 
--- utils
+- utils
   -- here you can find files with useful additional functions.
--- main.py
--- requirements.txt
--- seed.json
+- main.py
+- requirements.txt
+- seed.json
 
 In order to run a game you can use this command and specify the options as wished:
 python main.py --p1-agent <LLM/GREEDY/CLAUDE/GEMINI/TOM> --p2-agent <LLM/GREEDY/CLAUDE/GEMINI/TOM> --set-global-seed  --load-scenario .\seed.json
