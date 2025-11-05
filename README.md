@@ -18,6 +18,11 @@ The repository is split in the following way
 -- seed.json
 
 In order to run a game you can use this command and specify the options as wished:
+python main.py --p1-agent <LLM/GREEDY/CLAUDE/GEMINI/TOM> --p2-agent <LLM/GREEDY/CLAUDE/GEMINI/TOM> --set-global-seed  --load-scenario .\seed.json
+The load scenario with the seed.json makes sure that you will run the game on our found seed that had some interesting properties. Not using a seed might give game boards or distributions that do not require
+any negotiation for example. 
+If chosen to use any player as TOM agent, use: --p<1/2>-tom-order <0/1/2> to specify the order of TOM for player 1 or 2
+You can also add --tournament to run the tournament mode such that the agents will play more games in a row. 
 
 
 paper 1*: de Weerd, H., Verbrugge, R. & Verheij, B. Negotiating with other minds: the role of recursive theory of mind in negotiation with incomplete information. Auton Agent Multi-Agent Syst 31, 250–287 (2017). https://doi.org/10.1007/s10458-015-9317-1
