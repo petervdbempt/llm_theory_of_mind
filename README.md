@@ -8,10 +8,10 @@ The repository is split in the following way
   -- here you can find the different kinds of agents. We have 4 kind of agents, a greedy agent, a TOM agent with different orders of TOM and 3 LLM agents: Llama, Claude and Gemini.
 - game
   -- here you can find the game logic which we use to visualize and evaluate games of Colored Trails. 
-- scripts_harmen
-  -- here you can find the original scripts that were taken from: http://www.harmendeweerd.nl/alternating-offers-negotiation/. These scripts are an implementation of paper 1*. 
-- rewritten_scripts_harmen
-  -- here you can find the scripts rewritten to work with our Python implementation. 
+- scripts_tom_agents
+  -- here you can find the original scripts of the TOM agents, that were taken from: http://www.harmendeweerd.nl/alternating-offers-negotiation/. These scripts are an implementation of paper 1*. 
+- rewritten_scripts_tom_agents
+  -- here you can find the scripts of paper 1*, rewritten to work with our Python implementation. 
 - utils
   -- here you can find files with useful additional functions.
 - main.py
@@ -19,7 +19,7 @@ The repository is split in the following way
 - seed.json
 
 In order to run a game you can use this command and specify the options as wished:
-python main.py --p1-agent <LLM/GREEDY/CLAUDE/GEMINI/TOM> --p2-agent <LLM/GREEDY/CLAUDE/GEMINI/TOM> --set-global-seed  --load-scenario .\seed.json
+python main.py --p1-agent <LLAMA/GREEDY/CLAUDE/GEMINI/TOM> --p2-agent <LLAMA/GREEDY/CLAUDE/GEMINI/TOM> --set-global-seed  --load-scenario .\seed.json
 
 The load scenario with the seed.json makes sure that you will run the game on our found seed that had some interesting properties. Not using a seed might give game boards or distributions that do not require
 any negotiation for example. 

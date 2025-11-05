@@ -13,10 +13,11 @@ def read_api_key(filepath="API_token.txt"):
 
 
 api_key = read_api_key()
+api_key = read_api_key()
 # print(f"used api key: {api_key}")
 
 
-class LLMPlayer:
+class LlamaMPlayer:
     """
     LLM-backed player that supports multi-chip trades.
     The prompt allows any chip redistribution (e.g., 1-for-1, 3-for-1, 1-for-2, etc.)
@@ -276,10 +277,10 @@ WHAT TO DO:
         accept = action_upper == "ACCEPT"
 
         if accept:
-            self._log(f"  [{self.player_id}] LLM decision: ACCEPT")
+            self._log(f"  [{self.player_id}] Llama decision: ACCEPT")
             self.history.append(f"{self.player_id} ACCEPTED offer ({opp_give} for {opp_receive}).")
         else:
-            self._log(f"  [{self.player_id}] LLM decision: REJECT")
+            self._log(f"  [{self.player_id}] Llama decision: REJECT")
             self.history.append(f"{self.player_id} REJECTED offer ({opp_give} for {opp_receive}).")
 
         return accept

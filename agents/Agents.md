@@ -10,6 +10,8 @@ SCORING:
 - +50 points for each unused chip
 - -1 point per negotiation round
 
+For more information on the game rules please read the Game.md in the game folder. 
+
 The agent calculates the utility of a trade based on the costs and possible increase if the trade 
 would be accepted by the opponent. 
 

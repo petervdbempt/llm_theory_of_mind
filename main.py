@@ -22,7 +22,7 @@ from game.colored_trails import (
     START_POS,
     COLORS, load_scenario_json, save_scenario_json
 )
-from agents.llm_player import LLMPlayer
+from agents.llm_player import LlamaMPlayer
 from agents.llm_player_claude import ClaudePlayer
 from agents.llm_player_gemini import LLMPlayer as GeminiPlayer
 
@@ -112,20 +112,22 @@ def plot_game_state(game: ColoredTrails, save=False, save_path: Path = None):
 
 
 
-def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str = 'LLM',
+def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLAMA', p2_type: str = 'LLAMA',
                         tom_order_p1: int = 1, tom_order_p2: int = 1, tournament=False,
                         logger: TextLogger | None = None):
     """
     Runs the full simulation of the negotiation phase followed by scoring.
     Supports multiple agent types:
-    - 'LLM': Uses LLMPlayer (Gemini-based)
+    - 'LLAMA': Uses LLAMA player
+    - 'GEMINI': Uses GEMINI player
+    - 'CLAUDE': Uses CLAUDE player
     - 'GREEDY': Simple greedy heuristic
     - 'TOM': Theory of Mind agent with specified order
 
     Args:
         game: The ColoredTrails game instance
-        p1_type: Agent type for player 1 ('LLM', 'GREEDY', 'TOM')
-        p2_type: Agent type for player 2 ('LLM', 'GREEDY', 'TOM')
+        p1_type: Agent type for player 1 ('LLAMA', 'GEMINI', 'CLAUDE', 'GREEDY', 'TOM')
+        p2_type: Agent type for player 2 ('LLAMA', 'GEMINI', 'CLAUDE', 'GREEDY', 'TOM')
         tom_order_p1: ToM order for p1 if p1_type='TOM' (0, 1, 2, ...)
         tom_order_p2: ToM order for p2 if p2_type='TOM' (0, 1, 2, ...)
     """
@@ -203,8 +205,8 @@ def run_game_simulation(game: ColoredTrails, p1_type: str = 'LLM', p2_type: str 
     # Build agents according to the requested types
     def create_agent(player_id: str, agent_type: str, tom_order: int):
         agent_type = agent_type.upper()
-        if agent_type == 'LLM':
-            return LLMPlayer(player_id=player_id, game_env=game, logger=logger)
+        if agent_type == 'LLAMA':
+            return LlamaMPlayer(player_id=player_id, game_env=game, logger=logger)
         elif agent_type == 'GREEDY':
             return GreedyPlayer(player_id=player_id, game_env=game, logger=logger)
         elif agent_type == 'TOM':
@@ -352,7 +354,7 @@ def run_tournament(args, games=1, use_seeds = False):
     base_log_dir.mkdir(exist_ok=True)
 
     agent_types = [ "CLAUDE", "GEMINI"]
-    # agent_types = ["GREEDY", "LLM", "CLAUDE", "GEMINI", "TOM"]
+    # agent_types = ["GREEDY", "LLAMA", "CLAUDE", "GEMINI", "TOM"]
     tom_orders = [0, 1, 2]  # ToM orders to test
 
     def make_agent_configs():
@@ -368,7 +370,7 @@ def run_tournament(args, games=1, use_seeds = False):
     agent_configs = make_agent_configs()
 
     def allow_self_play(a_type):
-        return a_type in ["LLM", "CLAUDE", "GEMINI"]
+        return a_type in ["LLAMA", "CLAUDE", "GEMINI"]
 
     matchups = []
     for (a1_type, a1_order), (a2_type, a2_order) in product(agent_configs, repeat=2):
@@ -492,11 +494,11 @@ def parse_args():
     p.add_argument("--load-scenario", type=str, default=None, help="Path to load an existing scenario JSON.")
     p.add_argument("--tournament", action="store_true", help="Run in tournament mode.")
 
-    p.add_argument("--p1-agent", type=str, default="LLM",
-                   choices=["LLM", "GREEDY", "CLAUDE", "GEMINI", "TOM"],
+    p.add_argument("--p1-agent", type=str, default="LLAMA",
+                   choices=["LLAMA", "GREEDY", "CLAUDE", "GEMINI", "TOM"],
                    help="Agent type for Player 1")
-    p.add_argument("--p2-agent", type=str, default="LLM",
-                   choices=["LLM", "GREEDY", "TOM"],
+    p.add_argument("--p2-agent", type=str, default="LLAMA",
+                   choices=["LLAMA", "GREEDY", "TOM"],
                    help="Agent type for Player 2")
 
     p.add_argument("--p1-tom-order", type=int, default=1,
@@ -551,5 +553,5 @@ if __name__ == "__main__":
 
 
     # examples
-    # python main.py --p1-agent LLM --p2-agent LLM --seed 42
+    # python main.py --p1-agent LLAMA --p2-agent LLAMA --seed 42
     # python main.py --p1-agent TOM --p2-agent TOM --p1-tom-order 1 --p2-tom-order 1 --seed 42
