@@ -4,19 +4,21 @@ We use the game of Colored Trails to test this.
 
 The repository is split in the following way
 
-- agents
-  -- here you can find the different kinds of agents. We have 4 kind of agents, a greedy agent, a TOM agent with different orders of TOM and 3 LLM agents: Llama, Claude and Gemini.
-- game
-  -- here you can find the game logic which we use to visualize and evaluate games of Colored Trails. 
-- scripts_tom_agents
-  -- here you can find the original scripts of the TOM agents, that were taken from: http://www.harmendeweerd.nl/alternating-offers-negotiation/. These scripts are an implementation of paper 1*. 
-- rewritten_scripts_tom_agents
-  -- here you can find the scripts of paper 1*, rewritten to work with our Python implementation. 
-- utils
-  -- here you can find files with useful additional functions.
+- agents 
+  - in this folder you can find the different kinds of agents. We have 4 kind of agents, a greedy agent, a TOM agent with different orders of TOM and 3 LLM agents: Llama, Claude and Gemini.
+- game 
+  - in this folder you can find the game logic which we use to visualize and evaluate games of Colored Trails. 
+- scripts_tom_agents 
+  - in this folder you can find the original scripts of the TOM agents, that were taken from: http://www.harmendeweerd.nl/alternating-offers-negotiation/. These scripts are an implementation of paper 1*. 
+- rewritten_scripts_tom_agents 
+  - in this folder you can find the scripts of paper 1*, rewritten to work with our Python implementation. 
+- utils 
+  - here you can find files with useful additional functions.
 - main.py
-- requirements.txt  -- here you can find the dependencies needed for this project
-- seed.json  -- here you can find a seed that allows for interesting behaviour of the agents
+- requirements.txt  
+  - in this file you can find the dependencies needed for this project
+- seed.json 
+  - in this file you can find a seed that allows for interesting behaviour of the agents
 
 
 To run the code of the repository, you can clone it using git clone https://github.com/petervdbempt/llm_theory_of_mind.git 
