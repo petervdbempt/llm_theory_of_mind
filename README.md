@@ -15,8 +15,9 @@ The repository is split in the following way
 - utils
   -- here you can find files with useful additional functions.
 - main.py
-- requirements.txt
-- seed.json
+- requirements.txt  -- here you can find the dependencies needed for this project
+- seed.json  -- here you can find a seed that allows for interesting behaviour of the agents
+
 
 In order to run a game you can use this command and specify the options as wished:
 python main.py --p1-agent <LLAMA/GREEDY/CLAUDE/GEMINI/TOM> --p2-agent <LLAMA/GREEDY/CLAUDE/GEMINI/TOM> --set-global-seed  --load-scenario .\seed.json
@@ -27,6 +28,9 @@ any negotiation for example.
 If chosen to use any player as TOM agent, use: --p<1/2>-tom-order <0/1/2> to specify the order of TOM for player 1 or 2
 
 You can also add --tournament to run the tournament mode such that the agents will play more games in a row. 
+
+![seed14gamestateplot.png](seed14gamestateplot.png)
+Here you can see the board of seed14
 
 
 paper 1*: de Weerd, H., Verbrugge, R. & Verheij, B. Negotiating with other minds: the role of recursive theory of mind in negotiation with incomplete information. Auton Agent Multi-Agent Syst 31, 250–287 (2017). https://doi.org/10.1007/s10458-015-9317-1
