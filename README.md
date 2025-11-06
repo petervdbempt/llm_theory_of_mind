@@ -15,6 +15,8 @@ Claude (claude-sonnet-4-5) and Gemini (gemini-2.5-flash).
   - in this folder you can find the original scripts of the TOM agents, that were taken from: http://www.harmendeweerd.nl/alternating-offers-negotiation/. These scripts are an implementation of paper 1*. 
 - rewritten_scripts_tom_agents 
   - in this folder you can find the scripts of paper 1*, rewritten to work with our Python implementation. 
+- plots
+  - Here you can find some files with visualisations of the work we have done
 - utils 
   - here you can find files with useful additional functions.
 - main.py
@@ -40,7 +42,7 @@ If chosen to use any player as TOM agent, use: --p<1/2>-tom-order <0/1/2> to spe
 You can also add --tournament to run the tournament mode such that the agents will play more games in a row. Be aware that 
 you only have limited tokens a day on a free account for the LLMs. 
 
-![seed14gamestateplot.png](seed14gamestateplot.png)
+![seed14gamestateplot.png](plots/seed14gamestateplot.png)
 
 Here you can see the board of seed14
 
