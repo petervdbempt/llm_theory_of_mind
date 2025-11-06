@@ -149,6 +149,7 @@ SCORING:
 
 GAME STATE (5x5):
 {self._format_board_state()}
+- The top left position in the board is row 0, column 0, the bottom right position is row 4, column 4
 - Start position: row 2, column 2
 - Goal position: row {goal_pos[0]}, column {goal_pos[1]}
 - Your chips: {dict(self.game.states[self.player_id].chips)}
