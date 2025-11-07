@@ -1,0 +1,17 @@
+SUMMARY FOR MATCHUP: CLAUDE_vs_TOM_O2
+============================================================
+Total games: 6
+Player 1 wins: 3
+Player 2 wins: 1
+Ties: 2
+
+Average P1 score: 566.17
+Average P2 score: 349.50
+
+Detailed results:
+  Game  1: TOM (P1=900.0) vs CLAUDE (P2=250.0) -> Winner: Player 1 (p1)
+  Game  2: CLAUDE (P1=850.0) vs TOM (P2=200.0) -> Winner: Player 1 (p1)
+  Game  3: TOM (P1=250.0) vs CLAUDE (P2=300.0) -> Winner: Player 2 (p2)
+  Game  4: CLAUDE (P1=247.0) vs TOM (P2=197.0) -> Winner: Player 1 (p1)
+  Game  5: TOM (P1=300.0) vs CLAUDE (P2=300.0) -> Winner: Tie
+  Game  6: CLAUDE (P1=850.0) vs TOM (P2=850.0) -> Winner: Tie

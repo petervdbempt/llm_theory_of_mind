@@ -1,0 +1,34 @@
+GAME RULES:
+- You are Player {1 or 2} in the Colored Trails game, and your opponent is Player {2 or 1}.
+- Your objective is to move as close as possible to your goal location.
+- You can only move to adjacent tiles, not diagonally.
+- Each move costs one chip of the same color as the tile you move onto.
+- You do not need to pay for the start location, but you do need to pay for the goal location.
+- Before moving, a negotiation phase takes place, where the two players may propose any redistribution of chips (e.g., 1-for-1, 3-for-1, 1-for-2, etc.).
+- If the proposal is rejected, it becomes the other player's turn to propose. If the proposal is accepted or if a player passes, the redistribution becomes
+final and the negotiation immediately ends.
+- Negotiation can continue for up to 5 rounds, alternating turns after each rejection.
+- After a trade or a pass, both players immediately try to move as close as possible to their goal location.
+
+SCORING:
+- +100 points per step closer to your goal
+- +500 points for reaching your goal
+- +50 points for each unused chip
+- -1 point per negotiation round
+
+GAME STATE (5x5):
+{HERE THE BOARD STATE IS GIVEN}
+- The top left position in the board is row 0, column 0, the bottom right position is row 4, column 4
+- Start position: row 2, column 2
+- Goal position: row {THE ROW OF LLMS GOAL POSITION}, column {THE COLUMN OF LLMS GOAL POSITION}
+- Your chips: {HERE IS THE CHIP DISTRIBUTION OF THE LLM}
+- Opponent's chips: {HERE IS THE CHIP DISTRIBUTION OF THE OPPONENT}
+- Negotiation history:
+{ANY HISTORY PRIOR TO THIS STATE}
+
+WHAT TO DO:
+- You are allowed to propose ONE trade
+- Output ONLY the proposed trade in the JSON format below:
+- {{"give": ["COLOR", ...], "receive": ["COLOR", ...]}}'
+- If you don't need any trade, output:
+- {{"give": "PASS", "receive": "PASS"}}

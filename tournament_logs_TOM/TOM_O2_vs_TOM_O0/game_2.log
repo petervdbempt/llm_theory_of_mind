@@ -1,0 +1,51 @@
+Starting game 2 with seed 18
+[ToM0-p1] Initialized ToM-0 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM1-p2] Initialized ToM-1 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM0-p1] Initialized ToM-0 agent
+[ToM1-p1] Initialized ToM-1 agent
+[ToM2-p1] Initialized ToM-2 agent
+[ToM0-p1] Initialized ToM-0 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM1-p2] Initialized ToM-1 agent
+
+============================================================
+      COLORED TRAILS: STARTING NEGOTIATION LOG
+============================================================
+
+Agent Configuration:
+ - P1: TOM (Order 2)
+ - P2: TOM (Order 1)
+
+Initial Chip Distribution (Player Hands):
+ - P1 (Goal:(1, 4)): 1xGR, 2xOR, 1xBL
+ - P2 (Goal:(3, 0)): 3xBL, 1xRE
+
+============================================================
+ROUND 1
+============================================================
+
+--- P1's Turn to Propose ---
+[ToM2-p1] Generating trade proposal (Order-2)
+[ToM2-p1] Proposing: give ['OR'] for ['BL', 'BL']
+  -> PROPOSAL: P1 offers to GIVE: ['OR'] for RECEIVING: ['BL', 'BL'] from P2
+[ToM1-p2] Evaluating proposal: receive ['OR'], give ['BL', 'BL']
+[ToM1-p2] ACCEPTING (offer is among best options)
+  -> P2 ACCEPTS the trade!
+  -> Chips after trade:
+     - P1 Chips: {'GR': 1, 'OR': 1, 'BL': 3}
+     - P2 Chips: {'BL': 1, 'RE': 1, 'OR': 1}
+
+============================================================
+--- NEGOTIATION PHASE ENDED ---
+
+--- FINAL RESULTS ---
+P1 Offers Made: 1 (Penalty: 1 points)
+P2 Offers Made: 0 (Penalty: 0 points)
+
+P1 Final Score: 899 (Max Path Score: 900)
+P2 Final Score: 250 (Max Path Score: 250)
+
+WINNER: Player 1 (p1)
+============================================================

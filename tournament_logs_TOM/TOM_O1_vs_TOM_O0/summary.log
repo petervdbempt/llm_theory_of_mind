@@ -1,0 +1,17 @@
+SUMMARY FOR MATCHUP: TOM_O1_vs_TOM_O0
+============================================================
+Total games: 6
+Player 1 wins: 3
+Player 2 wins: 1
+Ties: 2
+
+Average P1 score: 574.83
+Average P2 score: 358.33
+
+Detailed results:
+  Game  1: TOM (P1=900.0) vs TOM (P2=250.0) -> Winner: Player 1 (p1)
+  Game  2: TOM (P1=899.0) vs TOM (P2=250.0) -> Winner: Player 1 (p1)
+  Game  3: TOM (P1=250.0) vs TOM (P2=300.0) -> Winner: Player 2 (p2)
+  Game  4: TOM (P1=250.0) vs TOM (P2=200.0) -> Winner: Player 1 (p1)
+  Game  5: TOM (P1=300.0) vs TOM (P2=300.0) -> Winner: Tie
+  Game  6: TOM (P1=850.0) vs TOM (P2=850.0) -> Winner: Tie

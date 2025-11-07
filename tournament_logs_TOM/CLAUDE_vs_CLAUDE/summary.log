@@ -1,0 +1,17 @@
+SUMMARY FOR MATCHUP: CLAUDE_vs_CLAUDE
+============================================================
+Total games: 6
+Player 1 wins: 4
+Player 2 wins: 0
+Ties: 2
+
+Average P1 score: 574.00
+Average P2 score: 341.00
+
+Detailed results:
+  Game  1: CLAUDE (P1=899.0) vs CLAUDE (P2=250.0) -> Winner: Player 1 (p1)
+  Game  2: CLAUDE (P1=850.0) vs CLAUDE (P2=200.0) -> Winner: Player 1 (p1)
+  Game  3: CLAUDE (P1=297.0) vs CLAUDE (P2=247.0) -> Winner: Player 1 (p1)
+  Game  4: CLAUDE (P1=248.0) vs CLAUDE (P2=199.0) -> Winner: Player 1 (p1)
+  Game  5: CLAUDE (P1=300.0) vs CLAUDE (P2=300.0) -> Winner: Tie
+  Game  6: CLAUDE (P1=850.0) vs CLAUDE (P2=850.0) -> Winner: Tie

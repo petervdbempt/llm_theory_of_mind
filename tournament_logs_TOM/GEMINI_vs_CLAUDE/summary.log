@@ -1,0 +1,17 @@
+SUMMARY FOR MATCHUP: GEMINI_vs_CLAUDE
+============================================================
+Total games: 6
+Player 1 wins: 4
+Player 2 wins: 0
+Ties: 2
+
+Average P1 score: 666.17
+Average P2 score: 341.50
+
+Detailed results:
+  Game  1: CLAUDE (P1=899.0) vs GEMINI (P2=250.0) -> Winner: Player 1 (p1)
+  Game  2: GEMINI (P1=850.0) vs CLAUDE (P2=200.0) -> Winner: Player 1 (p1)
+  Game  3: CLAUDE (P1=848.0) vs GEMINI (P2=249.0) -> Winner: Player 1 (p1)
+  Game  4: GEMINI (P1=250.0) vs CLAUDE (P2=200.0) -> Winner: Player 1 (p1)
+  Game  5: CLAUDE (P1=300.0) vs GEMINI (P2=300.0) -> Winner: Tie
+  Game  6: GEMINI (P1=850.0) vs CLAUDE (P2=850.0) -> Winner: Tie

@@ -1,0 +1,17 @@
+SUMMARY FOR MATCHUP: GEMINI_vs_TOM_O1
+============================================================
+Total games: 6
+Player 1 wins: 3
+Player 2 wins: 1
+Ties: 2
+
+Average P1 score: 566.67
+Average P2 score: 350.00
+
+Detailed results:
+  Game  1: TOM (P1=900.0) vs GEMINI (P2=250.0) -> Winner: Player 1 (p1)
+  Game  2: GEMINI (P1=850.0) vs TOM (P2=200.0) -> Winner: Player 1 (p1)
+  Game  3: TOM (P1=250.0) vs GEMINI (P2=300.0) -> Winner: Player 2 (p2)
+  Game  4: GEMINI (P1=250.0) vs TOM (P2=200.0) -> Winner: Player 1 (p1)
+  Game  5: TOM (P1=300.0) vs GEMINI (P2=300.0) -> Winner: Tie
+  Game  6: GEMINI (P1=850.0) vs TOM (P2=850.0) -> Winner: Tie

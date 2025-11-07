@@ -1,0 +1,38 @@
+Starting game 1 with seed 3
+[ToM0-p2] Initialized ToM-0 agent
+[ToM0-p1] Initialized ToM-0 agent
+[ToM1-p1] Initialized ToM-1 agent
+
+============================================================
+      COLORED TRAILS: STARTING NEGOTIATION LOG
+============================================================
+
+Agent Configuration:
+ - P1: TOM (Order 1)
+ - P2: GEMINI
+
+Initial Chip Distribution (Player Hands):
+ - P1 (Goal:(0, 0)): 1xOR, 1xRE, 1xGR, 1xBL
+ - P2 (Goal:(4, 3)): 1xGR, 1xRE, 1xOR, 1xBL
+
+============================================================
+ROUND 1
+============================================================
+
+--- P1's Turn to Propose ---
+[ToM1-p1] Generating trade proposal (Order-1)
+[ToM1-p1] Best option is to pass
+  -> P1 passes. Negotiation ends.
+
+============================================================
+--- NEGOTIATION PHASE ENDED ---
+
+--- FINAL RESULTS ---
+P1 Offers Made: 0 (Penalty: 0 points)
+P2 Offers Made: 0 (Penalty: 0 points)
+
+P1 Final Score: 900 (Max Path Score: 900)
+P2 Final Score: 250 (Max Path Score: 250)
+
+WINNER: Player 1 (p1)
+============================================================

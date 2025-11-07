@@ -1,0 +1,92 @@
+Starting game 2 with seed 18
+[ToM0-p1] Initialized ToM-0 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM1-p2] Initialized ToM-1 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM0-p1] Initialized ToM-0 agent
+[ToM1-p1] Initialized ToM-1 agent
+[ToM2-p1] Initialized ToM-2 agent
+
+============================================================
+      COLORED TRAILS: STARTING NEGOTIATION LOG
+============================================================
+
+Agent Configuration:
+ - P1: TOM (Order 2)
+ - P2: GEMINI
+
+Initial Chip Distribution (Player Hands):
+ - P1 (Goal:(1, 4)): 1xGR, 2xOR, 1xBL
+ - P2 (Goal:(3, 0)): 3xBL, 1xRE
+
+============================================================
+ROUND 1
+============================================================
+
+--- P1's Turn to Propose ---
+[ToM2-p1] Generating trade proposal (Order-2)
+[ToM2-p1] Proposing: give ['OR'] for ['BL', 'BL']
+  -> PROPOSAL: P1 offers to GIVE: ['OR'] for RECEIVING: ['BL', 'BL'] from P2
+[p2] 
+========== LLM PROMPT (p2) ==========
+
+GAME RULES:
+- You are Player P2 in the Colored Trails game, and your opponent is Player P1.
+- Your objective is to move as close as possible to your goal location.
+- You can only move to adjacent tiles, not diagonally.
+- Each move costs one chip of the same color as the tile you move onto.
+- You do not need to pay for the start location, but you do need to pay for the goal location.
+- Before moving, a negotiation phase takes place, where the two players may propose any redistribution of chips (e.g., 1-for-1, 3-for-1, 1-for-2, etc.).
+- If the proposal is rejected, it becomes the other player's turn to propose. If the proposal is accepted or if a player passes, the redistribution becomes final and the negotiation immediately ends.
+- Negotiation can continue for up to 5 rounds, alternating turns after each rejection.
+- After a trade or a pass, both players immediately try to move as close as possible to their goal location.
+
+SCORING:
+- +100 points per step closer to your goal
+- +500 points for reaching your goal
+- +50 points for each unused chip
+- -1 point per negotiation round
+
+GAME STATE (5x5):
+RE   RE   RE   YE   BL  
+YE   YE   OR   BL   OR  
+RE   OR   BL   GR   GR  
+OR   YE   OR   GR   OR  
+YE   RE   RE   YE   GR
+- Start position: row 2, column 2
+- Goal position: row 3, column 0
+- Your chips: {'BL': 3, 'RE': 1}
+- Opponent's chips: {'GR': 1, 'OR': 2, 'BL': 1}
+- Negotiation history:
+(none)
+
+PROPOSED TRADE:
+- Opponent offers: GIVE you ['OR'], wants ['BL', 'BL'] in return
+
+WHAT TO DO:
+- Decide whether to accept or reject the trade.
+- Output ONLY your decision in the JSON format below: 
+- {"action": "ACCEPT"}
+- OR
+- {"action": "REJECT"}
+
+==============================================
+
+[p2]   [p2] LLM decision: ACCEPT
+  -> P2 ACCEPTS the trade!
+  -> Chips after trade:
+     - P1 Chips: {'GR': 1, 'OR': 1, 'BL': 3}
+     - P2 Chips: {'BL': 1, 'RE': 1, 'OR': 1}
+
+============================================================
+--- NEGOTIATION PHASE ENDED ---
+
+--- FINAL RESULTS ---
+P1 Offers Made: 1 (Penalty: 1 points)
+P2 Offers Made: 0 (Penalty: 0 points)
+
+P1 Final Score: 899 (Max Path Score: 900)
+P2 Final Score: 250 (Max Path Score: 250)
+
+WINNER: Player 1 (p1)
+============================================================

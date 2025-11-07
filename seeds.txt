@@ -1,0 +1,12 @@
+Top 10 most active (offer-heavy) games:
+Seed 3 | Total offers: 6 (P1=3, P2=3)
+Seed 18 | Total offers: 5 (P1=3, P2=2)
+Seed 16 | Total offers: 4 (P1=2, P2=2)
+Seed 32 | Total offers: 4 (P1=2, P2=2)
+Seed 88 | Total offers: 4 (P1=2, P2=2)
+Seed 0 | Total offers: 3 (P1=2, P2=1)
+Seed 12 | Total offers: 3 (P1=2, P2=1)
+Seed 21 | Total offers: 3 (P1=2, P2=1)
+Seed 29 | Total offers: 3 (P1=2, P2=1)
+Seed 35 | Total offers: 3 (P1=2, P2=1)
+[{'seed': 3, 'offers_p1': 3, 'offers_p2': 3, 'total_offers': 6}, {'seed': 18, 'offers_p1': 3, 'offers_p2': 2, 'total_offers': 5}, {'seed': 16, 'offers_p1': 2, 'offers_p2': 2, 'total_offers': 4}, {'seed': 32, 'offers_p1': 2, 'offers_p2': 2, 'total_offers': 4}, {'seed': 88, 'offers_p1': 2, 'offers_p2': 2, 'total_offers': 4}, {'seed': 0, 'offers_p1': 2, 'offers_p2': 1, 'total_offers': 3}, {'seed': 12, 'offers_p1': 2, 'offers_p2': 1, 'total_offers': 3}, {'seed': 21, 'offers_p1': 2, 'offers_p2': 1, 'total_offers': 3}, {'seed': 29, 'offers_p1': 2, 'offers_p2': 1, 'total_offers': 3}, {'seed': 35, 'offers_p1': 2, 'offers_p2': 1, 'total_offers': 3}]

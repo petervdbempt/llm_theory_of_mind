@@ -1,0 +1,45 @@
+Starting game 5 with seed 88
+[ToM0-p1] Initialized ToM-0 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM1-p2] Initialized ToM-1 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM0-p1] Initialized ToM-0 agent
+[ToM1-p1] Initialized ToM-1 agent
+[ToM2-p1] Initialized ToM-2 agent
+[ToM0-p1] Initialized ToM-0 agent
+[ToM0-p2] Initialized ToM-0 agent
+[ToM1-p2] Initialized ToM-1 agent
+
+============================================================
+      COLORED TRAILS: STARTING NEGOTIATION LOG
+============================================================
+
+Agent Configuration:
+ - P1: TOM (Order 2)
+ - P2: TOM (Order 1)
+
+Initial Chip Distribution (Player Hands):
+ - P1 (Goal:(0, 1)): 2xOR, 1xGR, 1xBL
+ - P2 (Goal:(0, 3)): 2xBL, 2xRE
+
+============================================================
+ROUND 1
+============================================================
+
+--- P1's Turn to Propose ---
+[ToM2-p1] Generating trade proposal (Order-2)
+[ToM2-p1] Best option is to pass
+  -> P1 passes. Negotiation ends.
+
+============================================================
+--- NEGOTIATION PHASE ENDED ---
+
+--- FINAL RESULTS ---
+P1 Offers Made: 0 (Penalty: 0 points)
+P2 Offers Made: 0 (Penalty: 0 points)
+
+P1 Final Score: 300 (Max Path Score: 300)
+P2 Final Score: 300 (Max Path Score: 300)
+
+RESULT: TIE
+============================================================
